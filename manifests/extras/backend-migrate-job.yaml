@@ -1,0 +1,51 @@
+# Optional migrate job
+#
+# Intended usage:
+# - dev: included automatically via manifests/overlays/dev
+# - stage/prod: apply manually OR use GitOps hook (e.g., Argo CD sync hook)
+#
+# Apply manually:
+#   kubectl apply -f manifests/extras/backend-migrate-job.yaml
+# Re-run:
+#   kubectl -n lecture delete job backend-migrate --ignore-not-found
+#   kubectl -n lecture apply -f manifests/extras/backend-migrate-job.yaml
+#   kubectl -n lecture logs -l app=backend-migrate
+#
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: backend-migrate
+  namespace: lecture
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: backend-migrate
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: lecture-backend:dev
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: lecture-env
+          env:
+            - name: POSTGRES_HOST
+              value: db
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: DJANGO_RUN_MIGRATIONS
+              value: "true"
+            - name: DJANGO_COLLECTSTATIC
+              value: "true"
+            - name: DJANGO_CREATE_SUPERUSER
+              value: "false"
+          command:
+            - sh
+            - -c
+            - |
+              echo "Running migrations & collectstatic";
+              python manage.py migrate --noinput;
+              python manage.py collectstatic --noinput

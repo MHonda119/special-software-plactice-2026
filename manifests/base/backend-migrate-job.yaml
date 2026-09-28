@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: backend-migrate
+  namespace: lecture
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: backend-migrate
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: lecture-backend:dev
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: lecture-env
+          env:
+            - name: POSTGRES_HOST
+              value: db
+            - name: POSTGRES_PORT
+              value: "5432"
+            # Job側でmigrate/collectstaticを実行
+            - name: DJANGO_RUN_MIGRATIONS
+              value: "true"
+            - name: DJANGO_COLLECTSTATIC
+              value: "true"
+            # superuserはJobでは作らない（運用で別途）
+            - name: DJANGO_CREATE_SUPERUSER
+              value: "false"
+          command:
+            - sh
+            - -c
+            - |
+              echo "Running migrations & collectstatic";
+              python manage.py migrate --noinput;
+              python manage.py collectstatic --noinput

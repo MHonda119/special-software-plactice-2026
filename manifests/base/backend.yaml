@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: lecture
+spec:
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: lecture
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: lecture-backend:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: lecture-env
+          env:
+            # entrypoint.sh DB wait
+            - name: POSTGRES_HOST
+              value: db
+            - name: POSTGRES_PORT
+              value: "5432"
+            # k8sでは起動時処理はJobに寄せる（Pod起動時にmigrateしない）
+            - name: DJANGO_RUN_MIGRATIONS
+              value: "false"
+            - name: DJANGO_COLLECTSTATIC
+              value: "false"
+            - name: DJANGO_CREATE_SUPERUSER
+              value: "false"
+          # NOTE: In production you'd add readiness/liveness probes.

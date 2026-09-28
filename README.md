@@ -112,14 +112,51 @@
 
 
 
-# システム構成
+## 5. システム構成
 
-> [!NOTE]
-> **システム構成については後日公開します~**
->
-> 講義で使用するシステム全体の構成、各コンポーネントの役割、使用技術等について、このセクションで順次説明します。
+2025年度の教材から、LLMチャット・エージェント・RAG用データソース管理のサンプルアプリを移植しています。シンプルチャットではモデルを選択して会話を行い、エージェントではシステムプロンプトや検索対象を設定できます。「データ登録」画面は開発用のモックです。
 
+| コンポーネント | 技術 | 役割 |
+| --- | --- | --- |
+| `frontend/` | React / Vite / Material UI | チャット・エージェント・データソース管理の画面 |
+| `backend/` | Python / Django / Django REST Framework | REST API、Django管理画面、LLM呼び出し、RAG処理 |
+| `db` | PostgreSQL 16 | モデル設定・会話履歴・エージェント等の保存 |
+| `ollama/` | Ollama | ローカルLLMの実行。初回起動時に `gemma3:270m` を取得 |
+| ChromaDB | バックエンド内のライブラリ | RAG用テキストチャンク・埋め込みの保存と検索 |
+| `e2e/` | Playwright | ブラウザでの画面遷移・スクリーンショット検証 |
 
+ブラウザからのAPIリクエストはフロントエンドの `/api/` プロキシを通り、バックエンドからPostgreSQL、Ollama、ChromaDBへ接続します。
+
+### 起動
+
+DockerとDocker Composeを用意し、このリポジトリのルートで実行してください。`.env` のコピーは初回のみ必要です。
+
+```bash
+cp .env.example .env
+docker compose up --build -d
+docker compose logs -f backend ollama
+```
+
+初回はイメージのビルドとモデルのダウンロードに時間がかかります。起動ログを確認したら `Ctrl+C` でログ表示を終了できます。アプリはバックグラウンドで動き続けます。
+
+- フロントエンド: http://localhost:3000
+- Django管理画面: http://localhost:8000/admin/
+- APIヘルスチェック: http://localhost:8000/api/health/
+
+ローカル開発用の管理ユーザーは初回起動時に作成されます。管理画面からLLMを登録してチャットを開始する手順、環境設定、検証コマンドは [起動・検証ガイド](docs/setup.md) を参照してください。
+
+### 開発・検証資料
+
+- [起動・検証ガイド](docs/setup.md): 環境構築、LLM登録、テスト、トラブルシューティング
+- [移植・検証結果](docs/migration-verification.md): 2025年度版からの移植範囲と動作確認結果
+- [LLM API](backend/documents/llm_api.md) / [Session API](backend/documents/session_api.md) / [Agent API](backend/documents/agent_api.md) / [Datasource API](backend/documents/datasource_api.md): API資料（設計案・未実装項目を含む）
+- [E2Eテスト](e2e/README.md): Playwrightの実行とレポート
+- [Kubernetes教材](manifests/README.md): ローカルクラスタ用マニフェスト
+- `scripts/api_basics/`: 外部LLM APIの利用例
+
+### ライセンス
+
+移植したサンプルコードのライセンスは [Apache License 2.0](LICENSE) です。
 
 ## 更新履歴
 
@@ -127,5 +164,4 @@
 | --- | --- |
 | 2026-09-18 | README公開 |
 | 2026-09-24 | 講義日程を一部変更 |
-
-```
+| 2026-09-28 | 2025年度のサンプルアプリを移植し、起動・検証ガイドを追加 |

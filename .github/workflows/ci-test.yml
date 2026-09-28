@@ -1,0 +1,249 @@
+name: CI-Test
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  push:
+    branches:
+      - main
+      - develop
+
+env:
+  COMPOSE_DOCKER_CLI_BUILD: 1
+  DOCKER_BUILDKIT: 1
+
+jobs:
+  backend-build:
+    if: ${{ !startsWith(github.head_ref || github.ref_name, 'test') }}
+    name: Backend build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Prepare environment file
+        run: |
+          if [ -f .env ]; then
+            echo ".env already present"
+          elif [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            cat <<'EOF' > .env
+          POSTGRES_DB=lecture
+          POSTGRES_USER=lecture_user
+          POSTGRES_PASSWORD=lecture_pass
+          DJANGO_SECRET_KEY=django-insecure-change-me
+          EOF
+          fi
+
+      - name: Build backend container image
+        run: docker compose build backend
+
+      - name: Docker compose cleanup
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+
+  backend-lint:
+    name: Backend lint
+    needs: backend-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare environment file
+        run: |
+          if [ -f .env ]; then
+            echo ".env already present"
+          elif [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            cat <<'EOF' > .env
+          POSTGRES_DB=lecture
+          POSTGRES_USER=lecture_user
+          POSTGRES_PASSWORD=lecture_pass
+          DJANGO_SECRET_KEY=django-insecure-change-me
+          EOF
+          fi
+
+      - name: Backend lint (Ruff)
+        run: bash scripts/lint-backend.sh
+
+      - name: Docker compose cleanup
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+
+  backend-tests:
+    name: Backend tests
+    needs: backend-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare environment file
+        run: |
+          if [ -f .env ]; then
+            echo ".env already present"
+          elif [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            cat <<'EOF' > .env
+          POSTGRES_DB=lecture
+          POSTGRES_USER=lecture_user
+          POSTGRES_PASSWORD=lecture_pass
+          DJANGO_SECRET_KEY=django-insecure-change-me
+          EOF
+          fi
+
+      - name: Backend tests (manage.py test)
+        run: bash scripts/test-backend.sh
+
+      - name: Docker compose cleanup
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+
+  frontend-build:
+    name: Frontend build
+    needs: backend-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Prepare environment file
+        run: |
+          if [ -f .env ]; then
+            echo ".env already present"
+          elif [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            cat <<'EOF' > .env
+          POSTGRES_DB=lecture
+          POSTGRES_USER=lecture_user
+          POSTGRES_PASSWORD=lecture_pass
+          DJANGO_SECRET_KEY=django-insecure-change-me
+          EOF
+          fi
+
+      - name: Build frontend container image
+        run: docker compose build frontend
+
+      - name: Docker compose cleanup
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+
+  frontend-lint:
+    name: Frontend lint
+    needs: frontend-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare environment file
+        run: |
+          if [ -f .env ]; then
+            echo ".env already present"
+          elif [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            cat <<'EOF' > .env
+          POSTGRES_DB=lecture
+          POSTGRES_USER=lecture_user
+          POSTGRES_PASSWORD=lecture_pass
+          DJANGO_SECRET_KEY=django-insecure-change-me
+          EOF
+          fi
+
+      - name: Frontend lint (TypeScript + ESLint)
+        run: bash scripts/lint-frontend.sh
+
+      - name: Docker compose cleanup
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+
+  e2e-build:
+    name: E2E build
+    needs:
+      - backend-tests
+      - frontend-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Prepare environment file
+        run: |
+          if [ -f .env ]; then
+            echo ".env already present"
+          elif [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            cat <<'EOF' > .env
+          POSTGRES_DB=lecture
+          POSTGRES_USER=lecture_user
+          POSTGRES_PASSWORD=lecture_pass
+          DJANGO_SECRET_KEY=django-insecure-change-me
+          EOF
+          fi
+
+      - name: Build Playwright E2E container image
+        run: docker compose --profile e2e build e2e
+
+      - name: Docker compose cleanup
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+
+  e2e-tests:
+    name: E2E tests
+    needs: e2e-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare environment file
+        run: |
+          if [ -f .env ]; then
+            echo ".env already present"
+          elif [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            cat <<'EOF' > .env
+          POSTGRES_DB=lecture
+          POSTGRES_USER=lecture_user
+          POSTGRES_PASSWORD=lecture_pass
+          DJANGO_SECRET_KEY=django-insecure-change-me
+          EOF
+          fi
+
+      - name: Free disk space for E2E run
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc || true
+          sudo docker system prune --all --force --volumes
+
+      - name: Playwright end-to-end tests
+        run: bash scripts/test-e2e.sh
+
+      - name: Docker compose cleanup
+        if: always()
+        run: docker compose down --volumes --remove-orphans

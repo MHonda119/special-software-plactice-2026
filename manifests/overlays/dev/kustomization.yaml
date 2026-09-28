@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  # dev: include migrate job for convenience
+  - backend-migrate-job.yaml
+# dev overlay: keep defaults minimal for learning

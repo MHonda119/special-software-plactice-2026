@@ -1,0 +1,72 @@
+services:
+  db:
+    image: postgres:16-alpine
+    env_file: .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432" # ローカル開発用
+
+  ollama:
+    build: ./ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  backend:
+    build: ./backend
+    env_file: .env
+    volumes:
+      - ./backend:/app
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      - db
+      - ollama
+    environment:
+      # entrypointのDB待機用
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      # 初回自動作成されるDjango管理ユーザー（必要に応じて.envで上書き）
+      DJANGO_CREATE_SUPERUSER: "true"
+      DJANGO_SUPERUSER_USERNAME: admin
+      DJANGO_SUPERUSER_EMAIL: admin@example.com
+      DJANGO_SUPERUSER_PASSWORD: password
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    command: ["/usr/src/app/dev-entrypoint.sh"]
+    working_dir: /usr/src/app
+    volumes:
+      - ./frontend:/usr/src/app
+      - frontend_node_modules:/usr/src/app/node_modules
+    environment:
+      VITE_PORT: 3000
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+
+  e2e:
+    build: ./e2e
+    profiles:
+      - e2e
+    depends_on:
+      - frontend
+    environment:
+      PLAYWRIGHT_BASE_URL: http://frontend:3000
+    volumes:
+      - ./e2e/playwright-report:/tests/playwright-report
+
+volumes:
+  postgres_data:
+  ollama_data:
+  frontend_node_modules:

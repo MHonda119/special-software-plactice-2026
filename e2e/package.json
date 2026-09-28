@@ -1,0 +1,17 @@
+{
+  "name": "special-software-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:ci": "wait-on tcp:frontend:3000 && playwright test",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.44.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.2",
+    "wait-on": "^7.2.0"
+  }
+}
