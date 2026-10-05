@@ -152,7 +152,7 @@ docker compose logs -f backend ollama
 - [LLM API](backend/documents/llm_api.md) / [Session API](backend/documents/session_api.md) / [Agent API](backend/documents/agent_api.md) / [Datasource API](backend/documents/datasource_api.md): API資料（設計案・未実装項目を含む）
 - [E2Eテスト](e2e/README.md): Playwrightの実行とレポート
 - [Kubernetes教材](manifests/README.md): ローカルクラスタ用マニフェスト
-- `scripts/api_basics/`: 外部LLM APIの利用例
+- [OpenAI API基礎演習](scripts/api_basics/README.md): 講義システムから独立して実行できるPython演習
 
 ### ライセンス
 
