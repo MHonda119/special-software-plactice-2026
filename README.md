@@ -147,6 +147,7 @@ docker compose logs -f backend ollama
 
 ### 開発・検証資料
 
+- [Git・GitHub・Copilot・MCP・Skills基礎演習](docs/git-github-ai-workshop.md): 講義リポジトリ内の学生別ブランチで、Gitの基本操作、IssueからPR、gh、VS CodeでのAI開発支援を体験する初心者向け演習
 - [起動・検証ガイド](docs/setup.md): 環境構築、LLM登録、テスト、トラブルシューティング
 - [移植・検証結果](docs/migration-verification.md): 2025年度版からの移植範囲と動作確認結果
 - [LLM API](backend/documents/llm_api.md) / [Session API](backend/documents/session_api.md) / [Agent API](backend/documents/agent_api.md) / [Datasource API](backend/documents/datasource_api.md): API資料（設計案・未実装項目を含む）
