@@ -16,7 +16,7 @@
 - gitは手元の変更履歴を操作し、ghはGitHub上のIssueやPRなどを操作する。
 
 ## MCP
-後の演習で追記する。
+GitHub MCPの`method=get`でIssue #5を取得し、応答にIssue番号と取得対象が示されることを確認した。取得した目的・作業内容・完了条件をGitHubの画面と照合したところ、内容は一致していた。MCPを使うと、Issueの情報を取得して整理できる。
 
 ## Skills
 後の演習で追記する。
