@@ -15,7 +15,12 @@
 後の演習で追記する。
 
 ## MCP
-後の演習で追記する。
+GitHub MCP を使ってこのリポジトリの Issue を取得して確認しました。具体的には MCP 経由で
+/repos/MHonda119/special-software-plactice-2026/issues/12 を取得し、Issue の目的・作業内容・完了条件を確認して
+GitHub の Issue ページ (https://github.com/MHonda119/special-software-plactice-2026/issues/12) と照合しました。
+
+気づき（短く）
+- VS Code のコマンドパレットでコマンドを入力するとき、先頭に ">" を付ける必要があります。">" を記述し忘れていたため、目的のコマンドや表示が見つけられませんでした。
 
 ## Skills
 後の演習で追記する。
