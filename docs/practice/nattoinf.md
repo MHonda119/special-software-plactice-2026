@@ -12,7 +12,9 @@
 - PRの役割：自分が変更を加えたコードを、確認してメインに読み込むことを要求する。
 
 ## gh
-後の演習で追記する。
+- ghで自分のIssue・PR・差分を確認できた。
+- Issueへ進捗コメントを投稿できた。
+- 同じPRに「gh」の追記が反映されている。
 
 ## MCP
 GitHub MCP を使ってこのリポジトリの Issue を取得して確認しました。具体的には MCP 経由で /repos/MHonda119/special-software-plactice-2026/issues/12 を取得し、Issue の目的・作業内容・完了条件を確認して GitHub の Issue ページ (MHonda119/special-software-plactice-2026#12) と照合しました。
@@ -20,6 +22,11 @@ GitHub MCP を使ってこのリポジトリの Issue を取得して確認し�
 気づき（短く）
 
 VS Code のコマンドパレットでコマンドを入力するとき、先頭に ">" を付ける必要があります。">" を記述し忘れていたため、目的のコマンドや表示が見つけられませんでした。
+
+- GitHub MCPのツール呼び出しを確認できた。
+- AIの整理した内容を、実際のIssueと比較した。
+- Copilotが編集した差分を読み、自分でコミット・pushした。
+- MCPによるPRコメントを確認した。
 
 ## Skills
 後の演習で追記する。
