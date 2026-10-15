@@ -12,9 +12,9 @@
 - PRの役割：自分が変更を加えたコードを、確認してメインに読み込むことを要求する。
 
 ## gh
-- ghで自分のIssue・PR・差分を確認できた。
-- Issueへ進捗コメントを投稿できた。
-- 同じPRに「gh」の追記が反映されている。
+- `gh` は GitHub CLI（コマンドラインインターフェース）で、ターミナルから GitHub の機能を利用するためのツール。
+- GitHub に認証して使うと、Issue や Pull Request の確認・作成・コメント、差分や CI の状態の確認などをコマンドで行える。
+- Git の基本操作（変更の記録やブランチの操作）を行う `git` と連携し、リポジトリでの作業をターミナル内で進められる。
 
 ## MCP
 GitHub MCP を使ってこのリポジトリの Issue を取得して確認しました。具体的には MCP 経由で /repos/MHonda119/special-software-plactice-2026/issues/12 を取得し、Issue の目的・作業内容・完了条件を確認して GitHub の Issue ページ (MHonda119/special-software-plactice-2026#12) と照合しました。
@@ -29,4 +29,5 @@ VS Code のコマンドパレットでコマンドを入力するとき、先頭
 - MCPによるPRコメントを確認した。
 
 ## Skills
-後の演習で追記する。
+- Skillsは、繰り返し行う作業の手順や知識を保存し、必要なときに呼び出して使える。
+- 今回は `study-note-nattoinf` Skillを使い、学んだ内容をこの学習メモのSkillsの節に整理して追記した。
