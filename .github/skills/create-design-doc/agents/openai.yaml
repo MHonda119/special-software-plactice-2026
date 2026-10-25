@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Backend API Design Doc"
+  short_description: "Draft backend API specifications without implementation"
+  default_prompt: "Use $create-design-doc to create only an API specification in docs/backend/api/ without implementing the API or running tests."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Backend Test Execution Only"
+  short_description: "Run Django backend tests without modifying code"
+  default_prompt: "Use $test-backend to run the selected backend tests and report results without modifying code or running lint."

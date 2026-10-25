@@ -1,0 +1,9 @@
+interface:
+  display_name: "GitHub Issue Planning Only"
+  short_description: "Plan cross-stack GitHub Issues without implementation"
+  default_prompt: "Use $plan-issue to read this Issue through GitHub MCP and break it into ordered, verifiable tasks across the affected stack without implementing changes."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "github"
+      description: "Read issues and comments through the configured GitHub MCP server"

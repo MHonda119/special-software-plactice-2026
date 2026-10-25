@@ -1,0 +1,4 @@
+interface:
+  display_name: "Lint Check Only"
+  short_description: "Run backend and frontend lint checks without fixes"
+  default_prompt: "Use $check-lint to run lint checks only and report findings without changing code or running tests."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Backend API Issue Development"
+  short_description: "Design, implement and test Django backend APIs"
+  default_prompt: "Use $develop-backend-api to address this backend API Issue, verify its contract, implement it, and run focused tests."
