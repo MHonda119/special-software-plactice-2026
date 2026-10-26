@@ -4,12 +4,15 @@ Django REST Frameworkで実装されているAPIの仕様を、リソース別�
 
 本資料は現在のルート、View、Serializer、Model、ユースケースの実装を根拠とする。未実装の機能や期待する将来の動作を、現在の仕様としては記載しない。
 
+仕様書一覧には、実装済みAPIの現行仕様に加えて仕様検討中のDraftを含む場合がある。Draftは未実装であり、公開済みエンドポイント一覧には含めない。
+
 ## 仕様書一覧
 
 | API | 仕様書 | 主な機能 |
 | --- | --- | --- |
 | ヘルスチェック | [health.md](health.md) | HTTP応答の確認 |
 | CSRF | [csrf.md](csrf.md) | CSRFトークンとCookieの発行 |
+| 認証 | [auth.md](auth.md) | セッションログイン、ログアウト、現在ユーザーの取得 |
 | LLM | [llms.md](llms.md) | 接続先・モデル・認証情報の管理 |
 | セッション | [sessions.md](sessions.md) | 会話セッションのCRUD、履歴取得、チャット |
 | エージェント | [agents.md](agents.md) | エージェントのCRUD、BASIC_CHAT/RAG_CHATの実行 |
@@ -24,6 +27,9 @@ Django REST Frameworkで実装されているAPIの仕様を、リソース別�
 | GET | `/api/` | DRFが自動生成するリソースへのリンク一覧 | 本書 |
 | GET | `/api/health/` | ヘルスチェック | [health.md](health.md) |
 | GET | `/api/csrf/` | CSRFトークン取得 | [csrf.md](csrf.md) |
+| POST | `/api/auth/login/` | セッションログイン | [auth.md](auth.md) |
+| POST | `/api/auth/logout/` | セッションログアウト | [auth.md](auth.md) |
+| GET | `/api/auth/me/` | 現在のログインユーザー | [auth.md](auth.md) |
 | GET | `/api/llms/` | LLM一覧 | [llms.md](llms.md) |
 | POST | `/api/llms/` | LLM作成 | [llms.md](llms.md) |
 | GET | `/api/llms/{id}/` | LLM詳細 | [llms.md](llms.md) |
@@ -66,15 +72,18 @@ ViewSetではGETに対応するHEAD、各APIではOPTIONSなどのDRF標準機�
 - ID・UUID・日時・生成テキスト・usageの値は例示であり固定値ではない。日時はシリアライズされたISO 8601形式。
 - 自前のストリーミングレスポンスは実装していない。チャットも処理完了後にJSONを返す。`options.stream=true` によるSSE利用はサポートしない。
 
-## 認証・CSRF
+## 現行実装の認証・CSRF
 
-現設定では `REST_FRAMEWORK` による認証・権限の上書きがなく、DRF標準の `SessionAuthentication`、`BasicAuthentication`、`AllowAny` が適用される。
+DRFの既定認証は固定12時間期限を検査するセッション認証、既定権限は `IsAuthenticated`。
 
-- 未認証のクライアントもAPIを呼び出せる。APIごとの認可や、ユーザー別のリソース所有権チェックは実装されていない。
-- Djangoのログイン済みセッションCookieで認証される場合、POST/PUT/PATCH/DELETEではCSRF検証が行われる。[CSRF API](csrf.md) でCookieを受け取り、`X-CSRFToken` ヘッダーを送る。
-- 匿名アクセスやBasic認証に対して、CSRFトークンが常に必須となる実装ではない。
-- JWTや独自APIトークンの発行APIはない。LLMの `api_key` は外部プロバイダ向けであり、本APIの認証トークンではない。
-- 外部公開時のアクセス制御は別途必要。特にLLMの書き込みレスポンスには外部APIキーが含まれるため、ログへの記録にも注意する。
+- `/api/auth/login/` と `/api/csrf/`、`/api/health/` は匿名アクセス可能。logout/meと業務APIは認証を必須とする。
+- login/logoutのセッションCookieを使うPOSTではCSRF検証が行われる。[CSRF API](csrf.md) でCookieを受け取り、`X-CSRFToken` ヘッダーを送る。
+- ログイン時刻から43,200秒でセッション認証を失効させる。業務APIの操作で期限は延長されない。
+- JWT、Basic認証、独自APIトークンは使用しない。LLMの `api_key` は外部プロバイダ向けであり、本APIの認証トークンではない。
+- 認証済みユーザー間のリソース所有権チェックはなく、LLM等の業務データは共有される。
+- 外部公開時のCookie/CSRF/HTTPS設定を適切に構成する。LLMの書き込みレスポンスには外部APIキーが含まれるため、ログにも注意する。
+
+エンドポイントごとの入出力は [認証 API](auth.md) を参照。
 
 ## CRUD共通仕様
 
