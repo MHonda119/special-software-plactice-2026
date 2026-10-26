@@ -1,6 +1,7 @@
 from unittest.mock import patch
 import os
 import uuid
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
 from core.models import LLM, Datasource
@@ -11,6 +12,11 @@ import core.datasource_store as ds_store
 class DatasourceApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
+        user = get_user_model().objects.create_user(
+            username="api-test-user",
+            password="test-password",
+        )
+        self.client.force_authenticate(user=user)
         # テスト毎に分離された Chroma 永続ディレクトリを使用しデータ汚染回避
         self.persist_dir = f"/tmp/chroma_test_{uuid.uuid4()}"
         os.environ["CHROMA_PERSIST_DIR"] = self.persist_dir
