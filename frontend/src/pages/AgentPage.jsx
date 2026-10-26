@@ -73,7 +73,7 @@ export default function AgentPage() {
       const [agentList, llmList, datasourceList] = await Promise.all([
         agentApi.list(),
         getLLMs(),
-        datasourceApi.list().catch(() => []),
+        datasourceApi.list(),
       ]);
       setAgents(agentList);
       setLlms(llmList.filter((l) => l.is_active !== false));

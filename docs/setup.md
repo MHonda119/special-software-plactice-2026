@@ -99,6 +99,7 @@ docker compose exec backend python manage.py makemigrations --check --dry-run
 bash scripts/test-backend.sh
 bash scripts/lint-backend.sh
 bash scripts/lint-frontend.sh
+docker compose exec frontend npm run test:unit
 docker compose exec frontend npm run build
 ```
 
@@ -134,6 +135,7 @@ cd ../frontend
 npm ci
 npm run typecheck
 npm run lint
+npm run test:unit
 npm run build
 cd ..
 ```

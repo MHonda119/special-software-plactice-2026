@@ -68,7 +68,7 @@ export default function DatasourcePage() {
     setError(null);
     try {
       const [dsList, llmList] = await Promise.all([
-        datasourceApi.list().catch(() => []),
+        datasourceApi.list(),
         getLLMs(),
       ]);
       setDatasources(dsList || []);

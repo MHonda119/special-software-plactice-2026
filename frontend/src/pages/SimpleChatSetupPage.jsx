@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
   Container,
@@ -24,21 +25,16 @@ export default function SimpleChatSetupPage() {
   const [llms, setLlms] = useState([]);
   const [llmId, setLlmId] = useState("");
   const [sessions, setSessions] = useState([]);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const list = await getLLMs();
+        const [list, sess] = await Promise.all([getLLMs(), listSessions()]);
         setLlms(list.filter((l) => l.is_active !== false));
-      } catch {
-        setLlms([]);
-      }
-
-      try {
-        const sess = await listSessions();
         setSessions(sess);
-      } catch {
-        setSessions([]);
+      } catch (failure) {
+        setError(failure.message);
       }
     })();
   }, []);
@@ -46,6 +42,7 @@ export default function SimpleChatSetupPage() {
   const canStart = useMemo(() => Boolean(llmId), [llmId]);
 
   const handleStart = async () => {
+    setError(null);
     try {
       const session = await createSession({
         llm: Number(llmId),
@@ -54,7 +51,7 @@ export default function SimpleChatSetupPage() {
       const uuid = session.uuid || session.id || session.pk;
       navigate(`/chat/${uuid}`);
     } catch (e) {
-      alert(`セッション作成に失敗しました: ${e.message}`);
+      setError(e.message);
     }
   };
 
@@ -67,6 +64,7 @@ export default function SimpleChatSetupPage() {
         <Typography color="text.secondary">
           使用したいLLMモデルを選択し、新しいチャットセッションを開始します。
         </Typography>
+        {error && <Alert severity="error">{error}</Alert>}
 
         <Paper sx={{ p: 2 }}>
           <Stack spacing={2}>
