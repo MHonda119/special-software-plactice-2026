@@ -32,7 +32,7 @@ curl -c cookies.txt http://localhost:8000/api/csrf/
 
 ## 利用例
 
-ブラウザでログイン済みDjangoセッションを使って更新する場合の例。
+以下は、ブラウザでCSRF Cookieを取得後、ログイン済みDjangoセッションを使って更新する場合の例。
 
 ```javascript
 const csrfResponse = await fetch('/api/csrf/', {
@@ -55,10 +55,16 @@ const response = await fetch('/api/sessions/', {
 ## 挙動・制約
 
 - このAPIはログインやアクセストークンの発行を行わない。
-- セッション認証時のPOST/PUT/PATCH/DELETEでCSRF検証に失敗すると `403`。匿名アクセスに一律でCSRFを要求するものではない。詳細は [共通仕様](README.md) を参照。
+- ログイン POST と、セッション認証時の POST/PUT/PATCH/DELETE では CSRF 検証を行う。CSRF 検証に失敗すると `403`。未認証の業務 API は認証必須のため拒否される。詳細は [共通仕様](README.md) を参照。
 - 開発時の既定値では `CSRF_COOKIE_HTTPONLY=false`、`CSRF_COOKIE_SECURE=false`。環境変数 `DJANGO_CSRF_COOKIE_HTTPONLY`、`DJANGO_CSRF_COOKIE_SECURE` で変更できる。
 - オリジンの検証には `DJANGO_CSRF_TRUSTED_ORIGINS` の設定も関係する。Cookie・ヘッダーが存在するだけで、すべてのオリジンが許可されるわけではない。
 - 未対応のHTTPメソッドは `405 Method Not Allowed`。
+
+## 認証 API での利用
+
+[認証 API](auth.md) を利用するクライアントは、この API から CSRF Cookie とトークンを取得した後、Cookie と `X-CSRFToken` を付けて `/api/auth/login/` に POST する。この API は認証不要の公開例外である。
+
+ログイン後は同じ Cookie を保持して `sessionid`（Django の既定名）を送る。`/api/auth/me/` や業務 API は認証必須であり、ログアウト・業務 API の unsafe method でも CSRF トークンを送信する。health・csrf・login 以外の匿名利用は許可しない。
 
 ## 実装参照
 

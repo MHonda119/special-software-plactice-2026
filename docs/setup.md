@@ -45,12 +45,13 @@ curl --fail http://localhost:8000/api/health/
 docker compose exec ollama ollama list
 ```
 
-フロントエンドは http://localhost:3000 、管理画面は http://localhost:8000/admin/ です。APIのみ起動を確認したい場合は http://localhost:8000/api/ を開けます。
+フロントエンドは http://localhost:3000 、管理画面は http://localhost:8000/admin/ です。API は認証必須のため、匿名での起動確認には `http://localhost:8000/api/health/` を使用します。`/api/` 一覧と業務 API はログインが必要です。
 
 ## チャットを使う
 
-1. Django管理画面へログインします。Composeの既定値はユーザー名 `admin`、パスワード `password` です。
-2. `Llms` からLLMを追加します。
+1. Django管理画面へログインします。Composeの既定値はユーザー名 `admin`、パスワード `password` です。この固定認証情報は講義用ローカル環境向けであり、外部環境では使用しないでください。
+2. API を利用するユーザーが必要な場合、Django Admin の「Authentication and Authorization」→「Users」から有効なユーザーを登録します。ユーザー登録 API はありません。
+3. `Llms` からLLMを追加します。
 
    | 項目 | 設定例 |
    | --- | --- |
@@ -62,8 +63,8 @@ docker compose exec ollama ollama list
    | Extra | `{}` |
    | Is active | 有効 |
 
-3. フロントエンドの `START` →「シンプルチャット」で登録したモデルを選択します。
-4. 「新しいセッションを開始」からメッセージを送信し、応答と履歴を確認します。
+4. フロントエンドの `START` →「シンプルチャット」で登録したモデルを選択します。
+5. 「新しいセッションを開始」からメッセージを送信し、応答と履歴を確認します。
 
 管理ユーザーは未作成の場合のみ自動作成されます。作成後のパスワード変更には次を使用できます。
 
@@ -71,7 +72,7 @@ docker compose exec ollama ollama list
 docker compose exec backend python manage.py changepassword admin
 ```
 
-このCompose構成はローカル演習向けです。外部公開には認証・アクセス制御や各環境の設定が必要です。
+このCompose構成はローカル演習向けです。フロントエンドには今回ログイン連携を追加していないため、認証必須の API 呼び出しは拒否され、既存画面のチャット機能は利用できません。外部公開には初期管理者の固定パスワードを使用せず、HTTPS と各環境に適切な Cookie・CSRF・アクセス制御設定が必要です。
 
 ## RAGを使う場合
 
@@ -84,6 +85,8 @@ docker compose exec ollama ollama pull nomic-embed-text
 管理画面で `provider=OLLAMA`、`model=nomic-embed-text` のLLMを登録し、「データソース管理」でそのLLMを選んでデータソースとテキストチャンクを作成します。次に「エージェント」で `RAG_CHAT`、チャット用LLM、対象データソース、埋め込みモデルを設定して会話を開始します。データソース登録時と検索時の埋め込みモデルは一致させてください。
 
 詳細な項目やリクエスト例は [Datasource API](../backend/documents/datasource_api.md) と [Agent API](../backend/documents/agent_api.md) を参照してください。これらには将来の設計案も含まれます。
+
+認証 API のリクエスト・レスポンスは [認証 API 仕様](backend/api/auth.md) を参照してください。
 
 ## 検証
 
