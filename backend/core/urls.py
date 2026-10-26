@@ -1,5 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from .auth_views import LoginView, LogoutView, MeView
 from .views import (
     health,
     csrf_token,
@@ -18,5 +19,8 @@ router.register(r"datasources", DatasourceViewSet, basename="datasource")
 urlpatterns = [
     path("health/", health, name="health"),
     path("csrf/", csrf_token, name="csrf-token"),
+    path("auth/login/", LoginView.as_view(), name="auth-login"),
+    path("auth/logout/", LogoutView.as_view(), name="auth-logout"),
+    path("auth/me/", MeView.as_view(), name="auth-me"),
     path("", include(router.urls)),
 ]

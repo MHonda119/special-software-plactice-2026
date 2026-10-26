@@ -55,7 +55,7 @@ const response = await fetch('/api/sessions/', {
 ## 挙動・制約
 
 - このAPIはログインやアクセストークンの発行を行わない。
-- セッション認証時のPOST/PUT/PATCH/DELETEでCSRF検証に失敗すると `403`。匿名アクセスに一律でCSRFを要求するものではない。詳細は [共通仕様](README.md) を参照。
+- ログインを含むPOST/PUT/PATCH/DELETEでCSRF検証に失敗すると `403`。未認証の業務操作は `401` で拒否する。ログインでトークンが回転するため、成功後は再取得する。詳細は [認証API](auth.md) を参照。
 - 開発時の既定値では `CSRF_COOKIE_HTTPONLY=false`、`CSRF_COOKIE_SECURE=false`。環境変数 `DJANGO_CSRF_COOKIE_HTTPONLY`、`DJANGO_CSRF_COOKIE_SECURE` で変更できる。
 - オリジンの検証には `DJANGO_CSRF_TRUSTED_ORIGINS` の設定も関係する。Cookie・ヘッダーが存在するだけで、すべてのオリジンが許可されるわけではない。
 - 未対応のHTTPメソッドは `405 Method Not Allowed`。
