@@ -1,13 +1,13 @@
 ---
-name: create-design-doc
-description: "バックエンドAPIのdesign-doc、設計書、仕様検討、API仕様書の作成・更新のみを行う。create-design-doc、APIの仕様を検討したい、IssueからAPI仕様書だけを作りたい場合に使用する。design-docはdocs/backend/api/に置くAPI仕様書を指す。API実装、コード修正、テスト作成・実行、lint実行は行わない。"
+name: create-api-doc
+description: "バックエンドAPIの仕様検討、API仕様書の作成・更新のみを行う。create-api-doc、APIの仕様を検討したい、IssueからAPI仕様書だけを作りたい場合に使用する。API仕様書の出力先はdocs/backend/api/。Issueの実装計画書はplan-issueで扱い、このSkillでは作成しない。API実装、コード修正、テスト作成・実行、lint実行は行わない。"
 ---
 
 # API 仕様書作成専用
 
 ## 作業範囲
 
-ここでの design-doc は、[API 仕様書一覧](../../../docs/backend/api/README.md) にある `docs/backend/api/` 配下の API 仕様書を指す。仕様検討と、その文書の作成・更新だけを行う。
+[API 仕様書一覧](../../../docs/backend/api/README.md) にある `docs/backend/api/` 配下の API 仕様書について、仕様検討と文書の作成・更新だけを行う。`docs/design-docs/` の Issue 実装計画書は作成しない。
 
 - 書き込み先は `docs/backend/api/*.md` のみとし、必要な索引更新も同ディレクトリの README で行う。
 - API、Serializer、Model、Usecase、ルート、マイグレーション、フロントエンド、設定、スクリプトを変更しない。
@@ -60,7 +60,7 @@ description: "バックエンドAPIのdesign-doc、設計書、仕様検討、AP
 ## 呼び出し例
 
 ```text
-/create-design-doc このIssueのAPI仕様書だけを作成してください
-/create-design-doc セッションAPIの変更案を仕様検討してください
-/create-design-doc 現行のデータソースAPI仕様書を更新してください
+/create-api-doc このIssueのAPI仕様書だけを作成してください
+/create-api-doc セッションAPIの変更案を仕様検討してください
+/create-api-doc 現行のデータソースAPI仕様書を更新してください
 ```
