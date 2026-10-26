@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Action Report"
+  short_description: "Record verified agent actions in Git-ignored work logs"
+  default_prompt: "Use $report-agent-action to record the actual agent actions and verification results in a new Git-ignored work/<issue-num>/<num>-<title>.md file without committing it."
