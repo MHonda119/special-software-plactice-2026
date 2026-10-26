@@ -1,7 +1,7 @@
 interface:
-  display_name: "GitHub Issue Planning Only"
-  short_description: "Plan cross-stack GitHub Issues without implementation"
-  default_prompt: "Use $plan-issue to read this Issue through GitHub MCP and break it into ordered, verifiable tasks across the affected stack without implementing changes."
+  display_name: "GitHub Issue Plan Document"
+  short_description: "Write cross-stack Issue plans to docs/design-docs"
+  default_prompt: "Use $plan-issue to read this Issue through GitHub MCP, write an ordered, verifiable plan to docs/design-docs/<title>.md, and return the document link without implementing code."
 dependencies:
   tools:
     - type: "mcp"
