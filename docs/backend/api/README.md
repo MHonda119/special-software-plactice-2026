@@ -2,7 +2,7 @@
 
 Django REST Frameworkで実装されているAPIの仕様を、リソース別にまとめる。各仕様書はCRUDだけでなく、チャット・エージェント実行・チャンク操作も含む。
 
-本資料は現在のルート、View、Serializer、Model、ユースケースの実装を根拠とする。未実装の機能や期待する将来の動作を、現在の仕様としては記載しない。
+各リソースの現行仕様は現在のルート、View、Serializer、Model、ユースケースの実装を根拠とする。未実装の機能や期待する将来の動作は、現行仕様と区別して Draft に記載する。
 
 ## 仕様書一覧
 
@@ -10,6 +10,7 @@ Django REST Frameworkで実装されているAPIの仕様を、リソース別�
 | --- | --- | --- |
 | ヘルスチェック | [health.md](health.md) | HTTP応答の確認 |
 | CSRF | [csrf.md](csrf.md) | CSRFトークンとCookieの発行 |
+| 認証 | [auth.md](auth.md) | ログイン、ログアウト、現在のユーザー情報 |
 | LLM | [llms.md](llms.md) | 接続先・モデル・認証情報の管理 |
 | セッション | [sessions.md](sessions.md) | 会話セッションのCRUD、履歴取得、チャット |
 | エージェント | [agents.md](agents.md) | エージェントのCRUD、BASIC_CHAT/RAG_CHATの実行 |
@@ -24,6 +25,9 @@ Django REST Frameworkで実装されているAPIの仕様を、リソース別�
 | GET | `/api/` | DRFが自動生成するリソースへのリンク一覧 | 本書 |
 | GET | `/api/health/` | ヘルスチェック | [health.md](health.md) |
 | GET | `/api/csrf/` | CSRFトークン取得 | [csrf.md](csrf.md) |
+| POST | `/api/auth/login/` | ログイン | [auth.md](auth.md) |
+| POST | `/api/auth/logout/` | ログアウト | [auth.md](auth.md) |
+| GET | `/api/auth/me/` | 現在のユーザー情報 | [auth.md](auth.md) |
 | GET | `/api/llms/` | LLM一覧 | [llms.md](llms.md) |
 | POST | `/api/llms/` | LLM作成 | [llms.md](llms.md) |
 | GET | `/api/llms/{id}/` | LLM詳細 | [llms.md](llms.md) |
@@ -68,13 +72,13 @@ ViewSetではGETに対応するHEAD、各APIではOPTIONSなどのDRF標準機�
 
 ## 認証・CSRF
 
-現設定では `REST_FRAMEWORK` による認証・権限の上書きがなく、DRF標準の `SessionAuthentication`、`BasicAuthentication`、`AllowAny` が適用される。
-
-- 未認証のクライアントもAPIを呼び出せる。APIごとの認可や、ユーザー別のリソース所有権チェックは実装されていない。
-- Djangoのログイン済みセッションCookieで認証される場合、POST/PUT/PATCH/DELETEではCSRF検証が行われる。[CSRF API](csrf.md) でCookieを受け取り、`X-CSRFToken` ヘッダーを送る。
-- 匿名アクセスやBasic認証に対して、CSRFトークンが常に必須となる実装ではない。
-- JWTや独自APIトークンの発行APIはない。LLMの `api_key` は外部プロバイダ向けであり、本APIの認証トークンではない。
-- 外部公開時のアクセス制御は別途必要。特にLLMの書き込みレスポンスには外部APIキーが含まれるため、ログへの記録にも注意する。
+- API 認証は Django セッション認証のみ。Basic 認証は無効。ログイン API で新規セッションを開始し、ログアウトでサーバー側セッションを無効化する。
+- 未認証で利用可能な API は `GET /api/health/`、`GET /api/csrf/`、`POST /api/auth/login/` のみ。`POST /api/auth/logout/`、`GET /api/auth/me/`、DRF の `GET /api/` 一覧、およびすべての業務 API は認証必須。
+- Django Admin を含む全認証セッションはログイン時から固定 12 時間で失効し、リクエストによる期限延長を認めない。期限情報のない既存セッションも無効化する。
+- ログインを含むすべての unsafe method に CSRF 検証を適用する。未認証・期限切れの保護 API へのアクセスは `403`。
+- 業務データは認証済みユーザー間で共有し、ユーザー単位の所有権分離は行わない。
+- JWT や独自 API トークンの発行 API はない。LLM の `api_key` は外部プロバイダー向けで、本 API の認証情報ではない。
+- 認証導入後は、認証に対応していない既存フロントエンドから業務 API を利用できない。フロントエンド対応は別作業であり、統合リリース時期を別途調整する。
 
 ## CRUD共通仕様
 
@@ -112,7 +116,7 @@ ViewSetではGETに対応するHEAD、各APIではOPTIONSなどのDRF標準機�
 | ステータス | 主な条件 |
 | --- | --- |
 | 400 | 入力検証失敗、不正なJSON、不正なパラメータ |
-| 403 | セッション認証時のCSRF検証失敗、認証失敗など |
+| 403 | CSRF検証失敗、認証必須APIへの未認証・期限切れアクセス |
 | 404 | 通常の詳細取得対象が存在しない、個別に定義された非アクティブ・所属不一致条件 |
 | 405 | 未対応のHTTPメソッド |
 | 415 | 未対応のリクエストContent-Type |
@@ -123,9 +127,9 @@ ViewSetではGETに対応するHEAD、各APIではOPTIONSなどのDRF標準機�
 
 未処理例外に統一JSONエラーを返す独自ハンドラーはない。外部LLMの失敗を `502`/`504` に変換したり、参照中LLMの削除失敗を `409` に変換したりする処理もない。`500` のボディがJSONになることは保証しない。セッションチャットの存在確認も独自実装のため、通常CRUDの `404` と異なる点に注意する。
 
-## APIルート
+## APIルート（現行実装）
 
-`GET /api/` は `DefaultRouter` の自動生成レスポンス。リクエストボディは不要で、成功時は `200 OK`。返却URLのホスト・スキームはリクエストやプロキシ設定に依存する。
+`GET /api/` は `DefaultRouter` の自動生成レスポンス。認証済みの場合はリクエストボディ不要で `200 OK`。未認証の場合は `403 Forbidden`。返却URLのホスト・スキームはリクエストやプロキシ設定に依存する。
 
 ```json
 {
@@ -136,7 +140,7 @@ ViewSetではGETに対応するHEAD、各APIではOPTIONSなどのDRF標準機�
 }
 ```
 
-`health` と `csrf` はルーター外で明示登録されているため、この一覧には含まれない。
+`health`、`csrf`、認証 API はルーター外で明示登録されているため、この一覧には含まれない。
 
 ## 実装参照
 

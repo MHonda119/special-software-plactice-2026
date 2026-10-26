@@ -74,6 +74,7 @@ CSRF_TRUSTED_ORIGINS = _getenv_csv(
 CSRF_COOKIE_HTTPONLY = _getenv_bool("DJANGO_CSRF_COOKIE_HTTPONLY", False)
 CSRF_COOKIE_SECURE = _getenv_bool("DJANGO_CSRF_COOKIE_SECURE", False)
 SESSION_COOKIE_SECURE = _getenv_bool("DJANGO_SESSION_COOKIE_SECURE", False)
+SESSION_COOKIE_AGE = 43_200
 
 # Ingress等でHTTPS終端する場合の推奨設定（デフォルトは無効=現状互換）
 # - Nginx Ingress などは X-Forwarded-Proto を付与するため、必要に応じて有効化する
@@ -106,6 +107,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "core.authentication.AbsoluteSessionExpiryMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -115,6 +117,15 @@ CORS_ALLOW_ALL_ORIGINS = _getenv_bool("DJANGO_CORS_ALLOW_ALL_ORIGINS", True)  # 
 # CORS_ALLOW_ALL_ORIGINS=false の場合は、許可するOriginを明示指定する
 # 例: DJANGO_CORS_ALLOWED_ORIGINS=https://example.com,https://app.example.com
 CORS_ALLOWED_ORIGINS = _getenv_csv("DJANGO_CORS_ALLOWED_ORIGINS", [])
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+}
 
 DATABASES = {
     "default": {

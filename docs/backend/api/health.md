@@ -32,7 +32,9 @@ curl http://localhost:8000/api/health/
 
 - データベース、Ollama、外部LLM、Chromaの稼働状態は検査しない。
 - 外部サービスが停止していても、このハンドラーが実行できれば `200` を返す。依存サービスを含めたreadinessチェックではない。
-- 未対応のHTTPメソッドでは `405 Method Not Allowed` を返す。共通の認証・エラー仕様は [README.md](README.md) を参照。
+- 現行実装では匿名で利用できる。未対応のHTTPメソッドでは `405 Method Not Allowed` を返す。
+- `GET /api/health/` は匿名で利用できる公開例外。その他の業務 API、DRF の API 一覧は認証必須。
+- 共通の認証・エラー仕様は [README.md](README.md#認証csrf) を参照。
 
 ## 実装参照
 
