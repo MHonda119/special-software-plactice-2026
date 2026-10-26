@@ -1,0 +1,4 @@
+interface:
+  display_name: "Semantic Step-by-Step Commits"
+  short_description: "Commit implemented changes in small semantic units"
+  default_prompt: "Use $commit-step-by-step to split the implemented changes into small, coherent commits, preserving unrelated edits and staged changes without pushing."
