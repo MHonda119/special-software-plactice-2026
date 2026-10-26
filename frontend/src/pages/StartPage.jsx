@@ -11,9 +11,6 @@ export default function StartPage() {
           <Typography variant="h3" component="h1" align="center">
             Simple Chat
           </Typography>
-          <Typography color="text.secondary" align="center">
-            認証は後日追加予定です。Startを押してメニューへ。
-          </Typography>
           <Button
             variant="contained"
             size="large"

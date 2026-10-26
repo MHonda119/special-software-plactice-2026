@@ -11,22 +11,35 @@ import AgentFormPage from "./pages/AgentFormPage.jsx";
 import DataRegistrationPage from "./pages/DataRegistrationPage.jsx";
 import DatasourcePage from "./pages/DatasourcePage.jsx";
 import DatasourceChunksPage from "./pages/DatasourceChunksPage.jsx";
+import AuthRoot, { RequireAuth } from "./pages/AuthRoot.jsx";
+import LoginPage from "./pages/LoginPage.jsx";
 
 const router = createBrowserRouter([
-  { path: "/", element: <StartPage /> },
-  { path: "/menu", element: <MenuPage /> },
-  { path: "/simple-chat", element: <SimpleChatSetupPage /> },
-  { path: "/agent", element: <AgentPage /> },
-  { path: "/agent/new", element: <AgentFormPage /> },
-  { path: "/agent/:agentId/edit", element: <AgentFormPage /> },
-  { path: "/datasources", element: <DatasourcePage /> },
   {
-    path: "/datasources/:datasourceId/chunks",
-    element: <DatasourceChunksPage />,
+    element: <AuthRoot />,
+    children: [
+      { path: "/login", element: <LoginPage /> },
+      {
+        element: <RequireAuth />,
+        children: [
+          { path: "/", element: <StartPage /> },
+          { path: "/menu", element: <MenuPage /> },
+          { path: "/simple-chat", element: <SimpleChatSetupPage /> },
+          { path: "/agent", element: <AgentPage /> },
+          { path: "/agent/new", element: <AgentFormPage /> },
+          { path: "/agent/:agentId/edit", element: <AgentFormPage /> },
+          { path: "/datasources", element: <DatasourcePage /> },
+          {
+            path: "/datasources/:datasourceId/chunks",
+            element: <DatasourceChunksPage />,
+          },
+          { path: "/data-registration", element: <DataRegistrationPage /> },
+          { path: "/chat", element: <ChatPage /> },
+          { path: "/chat/:sessionId", element: <ChatPage /> },
+        ],
+      },
+    ],
   },
-  { path: "/data-registration", element: <DataRegistrationPage /> },
-  { path: "/chat", element: <ChatPage /> },
-  { path: "/chat/:sessionId", element: <ChatPage /> },
 ]);
 
 createRoot(document.getElementById("root")).render(
