@@ -132,3 +132,12 @@ STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 # 圧縮+ハッシュ付与でキャッシュ最適化
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "core.authentication.FixedExpirySessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+}
