@@ -9,6 +9,8 @@ Datasource API は Retrieval Augmented Generation (RAG) 向けに参照可能な
 
 将来 Agent の Usecase (例: `RAG_CHAT`) で Datasource を指定し、検索で取得したチャンクをコンテキストとして LLM 応答に統合します。
 
+全操作に[認証 API 仕様](../../docs/backend/api/auth.md)の期限付き Django セッション認証が必要です。更新系リクエストには CSRF token も必要です。認証済み利用者間の所有者別・グループ別アクセス制限はありません。
+
 ## 2. 背景 / 目的
 現在 RAG 利用を想定した文書管理層が存在せず、任意テキストを保持する標準化されたストアが無い。シンプルな MVP を早期提供し、以下を素早く検証する:
 1. 埋め込みモデル / 保存実装 (Chroma) の整合性
@@ -263,8 +265,8 @@ MVPのため以下は今回考えない。参考までに
 ## セキュリティ / 運用
 | 項目 | 現状 | 将来案 |
 |------|------|--------|
-| 認証 | 無し | Token / RBAC (Agent との関連付け) |
-| アクセス制御 | 無し | Datasource 所有者 / グループ権限 |
+| 認証 | 期限付き Django セッション | Token / RBAC (Agent との関連付け) |
+| アクセス制御 | 認証済み利用者間で共有（所有者別制限なし） | Datasource 所有者 / グループ権限 |
 | レート制限 | 無し | チャンク登録 API Throttle |
 | データ削除 | 物理/論理選択未定 | 物理 + Embedding GC / Vector tombstone |
 | PII マスク | 未対応 | プレ処理で除去 / 暗号化検討 |
