@@ -8,6 +8,7 @@ from .views import (
     AgentViewSet,
     DatasourceViewSet,
 )
+from .auth_views import login_view, logout_view, me_view
 
 router = DefaultRouter()
 router.register(r"llms", LLMViewSet, basename="llm")
@@ -18,5 +19,8 @@ router.register(r"datasources", DatasourceViewSet, basename="datasource")
 urlpatterns = [
     path("health/", health, name="health"),
     path("csrf/", csrf_token, name="csrf-token"),
+    path("auth/login/", login_view, name="auth-login"),
+    path("auth/logout/", logout_view, name="auth-logout"),
+    path("auth/me/", me_view, name="auth-me"),
     path("", include(router.urls)),
 ]
