@@ -1,4 +1,6 @@
 from rest_framework.decorators import api_view, action
+from rest_framework.decorators import permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import viewsets, status
 from .models import LLM, ChatSession, Agent, Message, Datasource
@@ -32,11 +34,13 @@ logger = logging.getLogger(__name__)
 
 
 @api_view(["GET"])
+@permission_classes([AllowAny])
 def health(request):
     return Response({"status": "ok"})
 
 
 @api_view(["GET"])
+@permission_classes([AllowAny])
 def csrf_token(request):
     """Issue CSRF token and return value."""
     token = get_token(request)

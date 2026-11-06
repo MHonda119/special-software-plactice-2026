@@ -148,8 +148,9 @@ curl -s http://localhost:8000/api/sessions/<UUID>/messages/
 - 現状: 全履歴取得は `session.messages.all()` の昇順結果。メッセージ数が増加するとパフォーマンス課題（ページング未実装）。
 
 ## セキュリティ / CSRF
-- 認証未実装。外部公開する場合は Token / Session 認証追加推奨。
-- CSRF: Cookie + `X-CSRFToken` ヘッダ（`/api/csrf/` で取得）を POST/PUT/PATCH/DELETE で送信。
+- Django セッション認証が必要。ログイン、絶対有効期限、未認証時の応答は[認証 API 仕様](../../docs/backend/api/auth.md)を参照。
+- `/api/auth/login/` は匿名でも CSRF 検証が必要。Django がログイン時に CSRF token をローテーションするため、ログイン後に `/api/csrf/` から再取得する。
+- 認証済みセッションで POST/PUT/PATCH/DELETE を送る場合は Cookie と `X-CSRFToken` ヘッダを含める。
 
 ## 限界・改善余地
 | 項目 | 現状 | 改善案 |

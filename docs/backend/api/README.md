@@ -10,6 +10,7 @@ Django REST Frameworkで実装されているAPIの仕様を、リソース別�
 | --- | --- | --- |
 | ヘルスチェック | [health.md](health.md) | HTTP応答の確認 |
 | CSRF | [csrf.md](csrf.md) | CSRFトークンとCookieの発行 |
+| 認証 | [auth.md](auth.md) | ログイン、ログアウト、ログインユーザー情報取得 |
 | LLM | [llms.md](llms.md) | 接続先・モデル・認証情報の管理 |
 | セッション | [sessions.md](sessions.md) | 会話セッションのCRUD、履歴取得、チャット |
 | エージェント | [agents.md](agents.md) | エージェントのCRUD、BASIC_CHAT/RAG_CHATの実行 |
@@ -24,6 +25,9 @@ Django REST Frameworkで実装されているAPIの仕様を、リソース別�
 | GET | `/api/` | DRFが自動生成するリソースへのリンク一覧 | 本書 |
 | GET | `/api/health/` | ヘルスチェック | [health.md](health.md) |
 | GET | `/api/csrf/` | CSRFトークン取得 | [csrf.md](csrf.md) |
+| POST | `/api/auth/login/` | ログイン | [auth.md](auth.md) |
+| POST | `/api/auth/logout/` | ログアウト | [auth.md](auth.md) |
+| GET | `/api/auth/me/` | ログインユーザー情報取得 | [auth.md](auth.md) |
 | GET | `/api/llms/` | LLM一覧 | [llms.md](llms.md) |
 | POST | `/api/llms/` | LLM作成 | [llms.md](llms.md) |
 | GET | `/api/llms/{id}/` | LLM詳細 | [llms.md](llms.md) |
@@ -68,12 +72,12 @@ ViewSetではGETに対応するHEAD、各APIではOPTIONSなどのDRF標準機�
 
 ## 認証・CSRF
 
-現設定では `REST_FRAMEWORK` による認証・権限の上書きがなく、DRF標準の `SessionAuthentication`、`BasicAuthentication`、`AllowAny` が適用される。
-
-- 未認証のクライアントもAPIを呼び出せる。APIごとの認可や、ユーザー別のリソース所有権チェックは実装されていない。
-- Djangoのログイン済みセッションCookieで認証される場合、POST/PUT/PATCH/DELETEではCSRF検証が行われる。[CSRF API](csrf.md) でCookieを受け取り、`X-CSRFToken` ヘッダーを送る。
-- 匿名アクセスやBasic認証に対して、CSRFトークンが常に必須となる実装ではない。
-- JWTや独自APIトークンの発行APIはない。LLMの `api_key` は外部プロバイダ向けであり、本APIの認証トークンではない。
+- Django標準ユーザーのセッション認証を使用する。`/api/health/` と `/api/csrf/` は公開、`/api/auth/login/` は匿名利用可能だがCSRF検証必須。それ以外のAPI操作（API root、OPTIONS/HEADを含む）は認証が必要。
+- 認証には `/api/auth/login/` が発行するセッションだけを受け付け、未認証アクセスは `401` と `{"detail":"Authentication required."}` を返す。Basic認証やBearer/API tokenは使用しない。
+- ログイン成功から43,200秒後を絶対期限とし、アクセスやセッション更新では延長しない。期限到達時点以降は保護APIが `401` となる。期限後は再ログインが必要。
+- ログイン・ログアウトおよび認証済みのPOST/PUT/PATCH/DELETEにはCSRF検証が適用される。[CSRF API](csrf.md) でCookieとトークンを取得し、`X-CSRFToken` ヘッダーを送る。
+- APIは認証済みユーザー間のリソース所有権・ユーザー別分離を行わず、従来どおり共有データを扱う。
+- LLMの `api_key` は外部プロバイダ向けであり、本APIの認証情報ではない。
 - 外部公開時のアクセス制御は別途必要。特にLLMの書き込みレスポンスには外部APIキーが含まれるため、ログへの記録にも注意する。
 
 ## CRUD共通仕様
@@ -112,7 +116,8 @@ ViewSetではGETに対応するHEAD、各APIではOPTIONSなどのDRF標準機�
 | ステータス | 主な条件 |
 | --- | --- |
 | 400 | 入力検証失敗、不正なJSON、不正なパラメータ |
-| 403 | セッション認証時のCSRF検証失敗、認証失敗など |
+| 401 | 認証が必要なAPIへの未認証アクセス、無効なログイン資格情報 |
+| 403 | CSRF検証失敗 |
 | 404 | 通常の詳細取得対象が存在しない、個別に定義された非アクティブ・所属不一致条件 |
 | 405 | 未対応のHTTPメソッド |
 | 415 | 未対応のリクエストContent-Type |

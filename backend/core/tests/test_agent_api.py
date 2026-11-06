@@ -1,13 +1,19 @@
 from unittest.mock import patch
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
 from core.models import LLM, Agent, ChatSession
 from core.llm_clients import ChatResult
 
 
+User = get_user_model()
+
+
 class AgentApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
+        user = User.objects.create_user(username="api-user", password="test-pass")
+        self.client.force_authenticate(user=user)
         self.llm = LLM.objects.create(
             name="Local",
             provider="OLLAMA",

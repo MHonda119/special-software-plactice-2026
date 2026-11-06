@@ -5,6 +5,8 @@ LLM エンドポイントはチャット利用可能な LLM 設定（接続先 U
 
 ベースパス: `/api/llms/`
 
+全操作に[認証 API 仕様](../../docs/backend/api/auth.md)の期限付き Django セッション認証が必要です。更新系リクエストには CSRF token も必要です。以下の cURL 例は、`cookies.txt` にログイン済み session cookie があり、`<masked-csrf-token>` を最新の `/api/csrf/` 応答値に置き換えて実行する前提です。
+
 ## モデル項目
 | フィールド | 型 | 必須 | 説明 |
 |-----------|----|------|------|
@@ -151,11 +153,13 @@ LLM エンドポイントはチャット利用可能な LLM 設定（接続先 U
 ## cURL サンプル
 ```bash
 # 一覧
-curl -s http://localhost:8000/api/llms/
+curl -s -b cookies.txt http://localhost:8000/api/llms/
 
-# 作成 (CSRF / 認証不要構成の場合の例)
+# 作成
 curl -X POST http://localhost:8000/api/llms/ \
+  -b cookies.txt \
   -H 'Content-Type: application/json' \
+  -H 'X-CSRFToken: <masked-csrf-token>' \
   -d '{"name":"Local","provider":"OLLAMA","model":"llama3:8b"}'
 ```
 

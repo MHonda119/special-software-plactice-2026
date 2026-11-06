@@ -1,14 +1,20 @@
 import os
 from unittest.mock import patch
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
 from core.models import LLM, Agent, Datasource
 from core.llm_clients import ChatResult
 
 
+User = get_user_model()
+
+
 class RagChatUsecaseTests(TestCase):
     def setUp(self):  # noqa: D401
         self.client = APIClient()
+        user = User.objects.create_user(username="api-user", password="test-pass")
+        self.client.force_authenticate(user=user)
         os.environ["CHROMA_PERSIST_DIR"] = "/tmp/chroma_test"
         self.llm = LLM.objects.create(
             name="Local",

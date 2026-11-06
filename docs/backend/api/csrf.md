@@ -32,14 +32,37 @@ curl -c cookies.txt http://localhost:8000/api/csrf/
 
 ## 利用例
 
-ブラウザでログイン済みDjangoセッションを使って更新する場合の例。
+ブラウザでログインしてから業務 API を更新する場合の例。login も匿名リクエストから CSRF 検証される。
 
 ```javascript
 const csrfResponse = await fetch('/api/csrf/', {
   credentials: 'include',
   headers: { Accept: 'application/json' },
 });
-const { csrftoken } = await csrfResponse.json();
+let { csrftoken } = await csrfResponse.json();
+
+const loginResponse = await fetch('/api/auth/login/', {
+  method: 'POST',
+  credentials: 'include',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-CSRFToken': csrftoken,
+  },
+  body: JSON.stringify({
+    username: 'sample-user',
+    password: 'example-password',
+  }),
+});
+if (!loginResponse.ok) {
+  throw new Error('Login failed');
+}
+
+// Django rotates the CSRF token during login.
+const refreshedCsrfResponse = await fetch('/api/csrf/', {
+  credentials: 'include',
+  headers: { Accept: 'application/json' },
+});
+({ csrftoken } = await refreshedCsrfResponse.json());
 
 const response = await fetch('/api/sessions/', {
   method: 'POST',
@@ -55,7 +78,8 @@ const response = await fetch('/api/sessions/', {
 ## 挙動・制約
 
 - このAPIはログインやアクセストークンの発行を行わない。
-- セッション認証時のPOST/PUT/PATCH/DELETEでCSRF検証に失敗すると `403`。匿名アクセスに一律でCSRFを要求するものではない。詳細は [共通仕様](README.md) を参照。
+- `/api/auth/login/` は匿名アクセス可能だが、ログイン CSRF 対策として `X-CSRFToken` が必須。成功時に Django が CSRF token をローテーションするため、ログイン後にこの API を再度呼び出してから更新系 API を使う。
+- 認証済みセッションによるPOST/PUT/PATCH/DELETEでCSRF検証に失敗すると `403`。CSRFエラーは JSON の `detail` を返す。匿名アクセスに一律でCSRFを要求するものではない（login を除く）。詳細は [共通仕様](README.md) と [認証 API](auth.md) を参照。
 - 開発時の既定値では `CSRF_COOKIE_HTTPONLY=false`、`CSRF_COOKIE_SECURE=false`。環境変数 `DJANGO_CSRF_COOKIE_HTTPONLY`、`DJANGO_CSRF_COOKIE_SECURE` で変更できる。
 - オリジンの検証には `DJANGO_CSRF_TRUSTED_ORIGINS` の設定も関係する。Cookie・ヘッダーが存在するだけで、すべてのオリジンが許可されるわけではない。
 - 未対応のHTTPメソッドは `405 Method Not Allowed`。
