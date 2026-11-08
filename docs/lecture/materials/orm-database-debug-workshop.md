@@ -94,7 +94,7 @@ python -m pip install -r backend/requirements.txt
 python backend/manage.py test core.tests.test_auth_api --settings lecture_system.test_settings --verbosity 2
 ```
 
-Python 3.12 がない場合や依存関係を導入できない場合は、Docker attach の手順へ進みます。SQLite を使っても Django が読み込むアプリケーションの依存関係は必要です。[requirements.txt](../../../backend/requirements.txt) を一部だけ省いて導入しないようにします。
+Python 3.12 がない場合や依存関係を導入できない場合は、3-4 の Dev Containers を使う手順へ進みます。SQLite を使っても Django が読み込むアプリケーションの依存関係は必要です。[requirements.txt](../../../backend/requirements.txt) を一部だけ省いて導入しないようにします。
 
 VS Code では Python 拡張機能と Python Debugger 拡張機能を有効にします。`Python: Select Interpreter` で、上記の仮想環境の Python を選択します。Remote SSH を使う場合は、リモート側の拡張機能とインタープリターを確認します。
 
@@ -154,131 +154,69 @@ VS Code の「実行とデバッグ」から設定ファイルを作成します
 
 この起動方法は Django のテストランナーを使います。テストファイルを通常の Python ファイルとして直接実行する方法や、標準の unittest discovery だけで起動する方法とは異なります。
 
-ローカルの `launch` では Python Debugger 拡張機能がデバッガーを起動します。仮想環境へ debugpy を別途導入することは、この方法の前提ではありません。次の Docker attach ではコマンドラインから debugpy を起動するため、一時コンテナへの導入が必要です。
+ローカル起動と次の Dev Containers の `launch` では、Python Debugger 拡張機能がデバッガーを起動します。Python 環境へ debugpy を別途導入することは、この方法の前提ではありません。3-6 の debugpy attach ではコマンドラインから debugpy を起動するため、一時コンテナへの導入が必要です。
 
-#### Remote SSH で backend コンテナ内から起動する方法です
+#### Dev Containers で backend コンテナ内から起動する方法です
 
-VS Code の Remote SSH を使うと、コンテナ内に VS Code Server と Python 拡張機能を配置し、コンテナ内の Python でテストを起動できます。この方法は、Docker ホストへ SSH 接続しただけの状態や、3-6 の debugpy attach とは異なります。
+この講義では、VS Code の Dev Containers 拡張機能で backend コンテナを開き、コンテナ内の Python でテストを起動します。コンテナへの接続には Docker を使うため、コンテナ内の SSH サーバー、SSH 鍵の配置、SSH ポートの公開は不要です。
 
-標準の [backend/Dockerfile](../../../backend/Dockerfile) には SSH サーバーがありません。そのまま `ssh backend` で接続することはできません。ここでは backend イメージを使う演習専用コンテナに SSH サーバーを追加します。通常稼働する backend サービスや Compose ファイルは変更しません。
+Docker が別の Linux ホストで動いている場合だけ、先に Remote SSH でその Docker ホストへ接続します。ホストへの接続には既存の SSH 認証を使いますが、コンテナ用の鍵を新しく作成・配置する必要はありません。Docker が受講者の PC で動いている場合は、Remote SSH 自体も不要です。
 
 ```text
 受講者の PC の VS Code
-	→ SSH: Docker ホスト（別ホストの場合だけ経由します）
-	→ SSH: 演習用 backend コンテナ
+	→ Remote SSH: Docker ホスト（別ホストの場合だけ使用します）
+	→ Dev Containers: backend コンテナを開きます。
 	→ コンテナ内の Python で manage.py test を起動します。
 ```
 
-**1. 実行場所と公開鍵を準備します。**
+**1. Docker ホストと拡張機能を確認します。**
 
-Docker ホストは、Docker とリポジトリがある Linux 環境です。受講者の PC は、VS Code と SSH クライアントを動かす環境です。同じ PC で Docker を動かす場合は、両者が同じ環境になります。以下は通常の Linux Docker を、リポジトリの所有者である一般ユーザーから操作できることを前提にします。rootless Docker や UID の変換を使う環境では、講師が書き込み権限を調整します。
+受講者の VS Code に Dev Containers 拡張機能をインストールします。別ホストを使う場合は Remote SSH 拡張機能も有効にし、`Remote-SSH: Connect to Host...` でリポジトリがある Docker ホストへ接続します。接続先の統合ターミナルで `docker version` と `docker compose version` が成功することを確認します。別ホストを使う場合、受講者の PC に Docker を導入する必要はありません。
 
-受講者の PC で Remote SSH 拡張機能を有効にし、演習用の鍵を準備します。既存の演習用鍵があれば再利用し、上書きしません。新規作成の場合は次を実行し、パスフレーズは端末へ直接入力します。
+Docker の操作権限と、VS Code Server・拡張機能を導入するためのネットワーク接続が必要です。Docker API を未認証の TCP ポートで公開したり、Docker ソケットを誰でも操作できる権限にしたりしません。
 
-```bash
-ssh-keygen -t ed25519 -f ~/.ssh/lecture_backend -C lecture-backend
-```
+**2. テスト用の backend コンテナを準備します。**
 
-Docker ホストが別ホストの場合は、受講者の PC に設定済みの SSH 接続名を使い、公開鍵だけを転送します。例の `lecture-host` は自分の接続名へ置き換えます。
+テストだけを実行する場合は、Docker ホストのリポジトリルートで次を実行します。3-2 で説明した backend イメージと Compose の環境変数ファイルを使用します。既存の `lecture-backend-debug` コンテナがある場合は、その用途を確認し、再利用するか別の名前を選びます。
 
 ```bash
-scp ~/.ssh/lecture_backend.pub lecture-host:~/lecture_backend.pub
-```
-
-同じ PC で Docker を動かす場合は、代わりに `cp ~/.ssh/lecture_backend.pub ~/lecture_backend.pub` を実行します。秘密鍵は PC に残し、コンテナやリポジトリへコピーしません。
-
-**2. Docker ホストで演習用コンテナを準備します。**
-
-Docker ホストのリポジトリルートで、次を実行します。既存の `lecture-backend-ssh` コンテナや 2222 番ポートがある場合は、別の名前・公開ポートを選び、以降のコマンドもそろえます。コンテナの作成には、3-2 で説明した backend イメージと Compose の環境変数ファイルが必要です。
-
-```bash
-LECTURE_UID="$(id -u)"
-LECTURE_GID="$(id -g)"
-[[ "$LECTURE_UID" -ne 0 ]]
 docker compose run --rm --no-deps --detach \
-	--name lecture-backend-ssh \
-	--publish 127.0.0.1:2222:22 \
+	--name lecture-backend-debug \
 	--volume "$PWD:/workspace" \
 	--entrypoint tail backend -f /dev/null
-docker exec --user root lecture-backend-ssh apt-get update
-docker exec --user root lecture-backend-ssh \
-	env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-	openssh-server bash tar curl ca-certificates libstdc++6
-docker exec --user root lecture-backend-ssh \
-	groupadd --non-unique --gid "$LECTURE_GID" lecture
-docker exec --user root lecture-backend-ssh \
-	useradd --uid "$LECTURE_UID" --gid lecture --create-home \
-	--shell /bin/bash --password '*' lecture
-docker exec --user root lecture-backend-ssh \
-	install -d -m 700 -o lecture -g lecture /home/lecture/.ssh
-docker cp "$HOME/lecture_backend.pub" lecture-backend-ssh:/tmp/lecture_backend.pub
-docker exec --user root lecture-backend-ssh \
-	install -m 600 -o lecture -g lecture \
-	/tmp/lecture_backend.pub /home/lecture/.ssh/authorized_keys
-docker exec --user root lecture-backend-ssh mkdir -p /run/sshd
-docker exec --user root lecture-backend-ssh ssh-keygen -A
-docker exec --user root lecture-backend-ssh /usr/sbin/sshd -t
-docker exec --detach --user root lecture-backend-ssh /usr/sbin/sshd -D -e \
-	-o PermitRootLogin=no \
-	-o PasswordAuthentication=no \
-	-o KbdInteractiveAuthentication=no \
-	-o PubkeyAuthentication=yes \
-	-o AllowUsers=lecture \
-	-o AllowTcpForwarding=local \
-	-o GatewayPorts=no \
-	-o AllowAgentForwarding=no \
-	-o X11Forwarding=no
 ```
 
-各コマンドが成功したことを確認してから次へ進みます。UID の確認が失敗した場合は root ではなく一般ユーザーで実施します。`useradd` が UID の重複などで失敗した場合も、そのまま先へ進まず、講師がアカウントを調整します。リポジトリ全体への `chown` で解決しないようにします。
+`--no-deps` とエントリーポイントの変更により、PostgreSQL・Ollama・API サーバーを起動せず、通常の DB 初期化も実行しません。コンテナを終了させずに接続を待つため、ここでは `tail -f /dev/null` を使います。SSH やデバッグ用のポートは公開しません。
 
-UID と GID をホストのユーザーに合わせることで、コンテナから編集したファイルの所有権が不必要に変わることを防ぎます。`--password '*'` は使用できないパスワード値を設定するもので、共通パスワードを配布する設定ではありません。SSH は公開鍵認証だけを許可し、VS Code Server が必要とするローカル転送は許可します。
+`/workspace` はリポジトリ全体、既存の `/app` は backend ディレクトリです。`/workspace/backend` と `/app` は同じホスト上のソースを参照します。Docker ホストには本物の秘密情報が入っていない演習用の環境変数ファイルを使います。
 
-`/workspace` はリポジトリ全体で、既存の `/app` は backend ディレクトリです。`/workspace/backend` と `/app` は同じホスト上のソースを参照します。エントリーポイントを変更しているため、通常の DB 初期化や API サーバーの起動は行いません。PostgreSQL や Ollama の起動も不要です。
+通常起動中の backend コンテナを使う場合は、この作成コマンドを省略できます。ただし、標準 Compose のマウント先は `/app` だけなので、後述のデバッグ設定では backend を基準にしたパスへ変更します。テスト専用コンテナに接続することと、通常のサービスを起動することは別です。
 
-Docker ホストには本物の秘密情報が入っていない演習用の環境変数ファイルを使います。一般ユーザーの SSH アカウントにしても、コンテナを実データや本番の秘密情報から隔離できるわけではありません。
+**3. Dev Containers で接続し、フォルダーを開きます。**
 
-**3. 受講者の PC から SSH の接続を確認します。**
+1. Docker ホストを開いている VS Code ウィンドウで、`Dev Containers: Attach to Running Container...` を実行します。
+2. テスト用なら `lecture-backend-debug` を、通常起動中のサービスを使うなら対応する backend コンテナを選択します。
+3. 新しく開いたウィンドウの左下がコンテナへの接続表示になっていることを確認します。`SSH: ホスト名` だけのウィンドウとは区別します。
+4. テスト用コンテナでは「フォルダーを開く」で `/workspace` を開きます。通常の backend コンテナでは `/app` を開きます。
+5. コンテナ側に Python 拡張機能と Python Debugger 拡張機能をインストールします。
+6. `Python: Select Interpreter` で `/usr/local/bin/python` を選択します。Docker ホスト側の仮想環境のパスは指定しません。
 
-受講者の PC の SSH 設定ファイルに、次を追加します。Docker ホストが同じ PC の場合は `ProxyJump` の行を削除します。別ホストの場合は、`lecture-host` に Docker ホストの既存の接続名を指定します。
+今回は既存コンテナへ接続するので、リポジトリへ `.devcontainer/devcontainer.json` を追加する必要はありません。設定ファイルからコンテナを作成して開く `Dev Containers: Reopen in Container` とは区別します。
 
-```sshconfig
-Host lecture-backend
-		HostName 127.0.0.1
-		Port 2222
-		User lecture
-		IdentityFile ~/.ssh/lecture_backend
-		IdentitiesOnly yes
-		ProxyJump lecture-host
+再接続時のフォルダーや拡張機能を記憶させたい場合は、接続後に `Dev Containers: Open Named Configuration File` から、テスト用コンテナの接続設定を編集できます。例えば次の設定を使います。既存設定がある場合は必要な項目だけを組み込みます。
+
+```json
+{
+	"workspaceFolder": "/workspace",
+	"extensions": ["ms-python.python", "ms-python.debugpy"]
+}
 ```
 
-`ProxyJump` がある場合の `127.0.0.1:2222` は、受講者の PC ではなく Docker ホスト側から到達するアドレスです。Docker ホストの SSH サーバーにも転送の許可が必要です。ホスト名 `backend` は Compose 内の名前なので、受講者の PC から直接到達できる名前とは限りません。
+この接続設定は `.vscode/launch.json` とは役割が異なります。また、存在しないユーザー名を `remoteUser` に指定しても、そのユーザーは自動では作成されません。[backend/Dockerfile](../../../backend/Dockerfile) は実行ユーザーを指定していないため、既定では root になります。Linux の bind mount では新規ファイルの所有者にも影響するので、講師は必要に応じてホストの UID・GID に対応する開発ユーザーを用意して接続設定を調整します。リポジトリ全体への `chown` で回避しません。
 
-先に Docker ホスト側でホスト鍵の指紋を確認します。
+**4. コンテナ内でテストを通常実行し、デバッグします。**
 
-```bash
-docker exec lecture-backend-ssh \
-	ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
-```
-
-次に受講者の PC で接続し、初回に表示された指紋と照合します。秘密鍵のパスフレーズを求められた場合は、端末へ直接入力します。
-
-```bash
-ssh lecture-backend
-```
-
-接続後に `whoami` が `lecture`、`python --version` が backend イメージの Python になることを確認します。コンテナを作り直すと SSH ホスト鍵も変わるため、再作成した事実と新しい指紋を確認した上で、対象の古い known_hosts エントリーだけを更新します。ホスト鍵確認を無効にして回避しません。
-
-**4. VS Code でコンテナを開き、テストをデバッグします。**
-
-1. 受講者の PC の VS Code で `Remote-SSH: Connect to Host...` を実行し、`lecture-backend` を選択します。必要に応じて OS は Linux を選びます。
-2. 左下の接続表示が `SSH: lecture-backend` であることを確認し、「フォルダーを開く」で `/workspace` を開きます。Docker ホストだけへ接続したウィンドウとは区別します。
-3. コンテナ側に Python 拡張機能と Python Debugger 拡張機能をインストールします。VS Code Server と拡張機能のダウンロードには、許可されたネットワーク接続が必要です。
-4. `Python: Select Interpreter` で `/usr/local/bin/python` を選択します。ホスト側の仮想環境のパスは指定しません。
-5. コンテナ側の統合ターミナルで、次の通常実行が成功することを確認します。
-6. `/workspace/.vscode/launch.json` に、3-4 のローカル起動と同じ設定を追加します。`${workspaceFolder}` は `/workspace` になるので、`program` は `/workspace/backend/manage.py`、`cwd` は `/workspace/backend` になります。
-7. `LoginSerializer.validate()`、`LoginView.post()`、`ChatInSessionUsecase.run()` などにブレークポイントを置き、対象のテスト設定を選択して `F5` で起動します。
-8. 停止後にコールスタック、変数、モデルの主キー・外部キーを観察します。デバッグコンソールの `__import__("sys").executable` が `/usr/local/bin/python` であることも確認します。
+テスト用コンテナで `/workspace` を開いた場合は、統合ターミナルで次を実行します。
 
 ```bash
 cd /workspace
@@ -287,21 +225,34 @@ python backend/manage.py test \
 	--settings lecture_system.test_settings --verbosity 2
 ```
 
-デバッガーもテストもコンテナ内で動くため、ここでは `request: "launch"` を使います。3-6 の `request: "attach"`、`pathMappings`、5678 番ポートの公開は不要です。設定の `DJANGO_SETTINGS_MODULE` は引き続き `lecture_system.test_settings` にして、インメモリ SQLite を使用します。
+通常実行が成功したら、`/workspace/.vscode/launch.json` に3-4 のローカル起動と同じ設定を追加します。`${workspaceFolder}` は `/workspace` なので、`program` は `/workspace/backend/manage.py`、`cwd` は `/workspace/backend` になります。
 
-`/app` だけを開くと `${workspaceFolder}/backend/manage.py` は存在しません。この手順では `/workspace` を開くことで、既存設定と講義教材の配置を保ちます。bind mount 内のコードやデバッグ設定の編集はホスト側にも反映されるため、演習用の変更と既存の変更を区別します。
+通常の backend コンテナで `/app` を開いた場合は、`cd /app` の後で `python manage.py test` に同じラベルとオプションを渡します。デバッグ設定の `program` と `cwd` は次のように変更します。他の `args`、`env`、`type`、`request` は3-4 の設定と同じです。
 
-**5. 演習後に接続とコンテナを終了します。**
-
-VS Code でデバッグを終了し、Remote SSH の接続を閉じます。その後 Docker ホストで、演習用コンテナだけを停止します。`--rm` を付けて作成したため、コンテナと追加した SSH サーバーは削除されます。bind mount 内の編集ファイルは削除されません。
-
-```bash
-docker stop lecture-backend-ssh
+```json
+{
+	"program": "${workspaceFolder}/manage.py",
+	"cwd": "${workspaceFolder}"
+}
 ```
 
-SSH の公開は Docker ホストのループバックに限定します。2222 番ポートを外部へ公開したり、通常の backend に共通パスワードで root 接続したりしません。複数の学生が使用する場合は、講師が学生別のコンテナ名・公開ポート・公開鍵を用意します。
+`LoginSerializer.validate()`、`LoginView.post()`、`ChatInSessionUsecase.run()` などにブレークポイントを置き、対象のテスト設定を選択して `F5` で起動します。停止後にコールスタック、変数、モデルの主キー・外部キーを観察します。デバッグコンソールの `__import__("sys").executable` が `/usr/local/bin/python` であることも確認します。
 
-この手順の GUI 接続とブレークポイント停止は、講義環境で事前に確認します。SSH 接続に失敗した場合は SSH の鍵・転送・サーバー設定を、VS Code の接続に失敗した場合は `Remote - SSH` 出力パネルと Linux の動作要件を確認します。SSH サーバーを追加しない選択肢として、Docker ホストへ Remote SSH 接続してから Dev Containers でコンテナを開く方法もありますが、コンテナへ直接 SSH 接続する方法とは別です。
+デバッガーもテストもコンテナ内で動くため、ここでは `request: "launch"` を使います。3-6 の `request: "attach"`、`pathMappings`、5678 番ポートの公開は不要です。`DJANGO_SETTINGS_MODULE` は引き続き `lecture_system.test_settings` にして、インメモリ SQLite を使用します。
+
+bind mount 内のコードやデバッグ設定の編集はホスト側にも反映されます。Dev Containers のウィンドウで Docker ホストへの Git 操作まで行う必要はありません。保存した変更はホスト側で確認し、演習用の変更と既存の変更を区別します。
+
+**5. 演習後に接続とテスト用コンテナを終了します。**
+
+VS Code でデバッグを終了し、コンテナへの接続を閉じます。接続を閉じるだけでは、この方法で手動作成したコンテナは停止しません。Docker ホストで、自分が作成したテスト用コンテナだけを停止します。
+
+```bash
+docker stop lecture-backend-debug
+```
+
+`--rm` を付けて作成したため、停止するとコンテナは削除されます。bind mount 内の編集ファイルは削除されません。通常起動中の backend を使った場合は、共有サービスをこの手順で停止しません。
+
+接続に失敗した場合は、まず Docker ホストの接続と Docker 操作権限を確認し、続いて Dev Containers の出力ログを確認します。GUI 接続とブレークポイント停止は、講義環境で事前に確認します。詳しくは [実行中のコンテナへの接続](https://code.visualstudio.com/docs/devcontainers/attach-container) と [リモート Docker ホストでの開発](https://code.visualstudio.com/remote/advancedcontainers/develop-remote-host) を参照します。
 
 ### 3-5. デバッガーの基本操作を確認します
 
