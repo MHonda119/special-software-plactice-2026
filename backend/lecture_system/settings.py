@@ -74,6 +74,21 @@ CSRF_TRUSTED_ORIGINS = _getenv_csv(
 CSRF_COOKIE_HTTPONLY = _getenv_bool("DJANGO_CSRF_COOKIE_HTTPONLY", False)
 CSRF_COOKIE_SECURE = _getenv_bool("DJANGO_CSRF_COOKIE_SECURE", False)
 SESSION_COOKIE_SECURE = _getenv_bool("DJANGO_SESSION_COOKIE_SECURE", False)
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_AGE = 43200
+SESSION_SAVE_EVERY_REQUEST = False
+CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_FAILURE_VIEW = "core.auth_views.csrf_failure"
+USE_TZ = True
+TIME_ZONE = "UTC"
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "core.authentication.FixedExpirySessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+}
 
 # Ingress等でHTTPS終端する場合の推奨設定（デフォルトは無効=現状互換）
 # - Nginx Ingress などは X-Forwarded-Proto を付与するため、必要に応じて有効化する

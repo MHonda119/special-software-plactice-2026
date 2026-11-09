@@ -45,7 +45,28 @@ curl --fail http://localhost:8000/api/health/
 docker compose exec ollama ollama list
 ```
 
-フロントエンドは http://localhost:3000 、管理画面は http://localhost:8000/admin/ です。APIのみ起動を確認したい場合は http://localhost:8000/api/ を開けます。
+フロントエンドは http://localhost:3000 、管理画面は http://localhost:8000/admin/ です。APIの起動確認には公開エンドポイント http://localhost:8000/api/health/ を使用します。`/api/` 以下の業務APIにはログインが必要です。
+
+## ユーザー登録とログイン
+
+ユーザーはDjango標準の `auth.User` で管理します。追加のユーザーモデルや独自のマイグレーションは不要です。パスワードはDjangoがハッシュ化し、認証APIはパスワードやハッシュを返しません。
+
+1. Django管理画面へログインします。Composeの既定値はユーザー名 `admin`、パスワード `password` です。
+2. `Authentication and Authorization` の `Users` からユーザーを追加し、一意のユーザー名とパスワードを設定して保存します。
+3. 作成したユーザーの `Active` を有効にします。アプリの利用だけなら `Staff status`、`Superuser status`、個別権限の付与は不要です。
+4. フロントエンドを開き、ログイン画面で登録したユーザー名とパスワードを入力します。管理画面へのログインとは別に、アプリのログイン画面から認証してください。
+
+画面上部の「ログアウト」で現在のセッションをサーバー側でも無効化できます。ログインから12時間で認証が失効し、操作を続けても期限は延長されません。期限到達時や休止からの復帰時にはログイン画面へ戻り、再読み込み時にはサーバーへ認証状態を確認します。
+
+未認証で利用できるAPIはヘルスチェック、CSRFトークン取得、ログインのみです。ログインを含む更新系APIにはCSRFトークンが必要です。APIクライアントから利用する場合のCookie・ヘッダーと応答形式は [認証API](backend/api/auth.md) と [CSRF API](backend/api/csrf.md) を参照してください。認証失敗時や通信障害時にmockデータへ切り替えることはありません。
+
+管理ユーザーは未作成の場合のみ自動作成されます。作成後のパスワード変更には次を使用できます。
+
+```bash
+docker compose exec backend python manage.py changepassword admin
+```
+
+このCompose構成はローカル演習向けです。外部公開時には既定の管理者パスワードを変更し、HTTPSとCookieの保護を設定してください。HTTPS環境では `DJANGO_SESSION_COOKIE_SECURE=true` と `DJANGO_CSRF_COOKIE_SECURE=true` を指定します。ローカルのHTTP環境では既定の `false` のまま使用します。セッションCookieは常にHttpOnlyです。Datasourceの所有者情報やユーザー別のデータ分離は実装対象外で、ログイン済みユーザー間で業務データを共有します。
 
 ## チャットを使う
 
@@ -62,16 +83,8 @@ docker compose exec ollama ollama list
    | Extra | `{}` |
    | Is active | 有効 |
 
-3. フロントエンドの `START` →「シンプルチャット」で登録したモデルを選択します。
+3. フロントエンドへ登録したユーザーでログインし、`START` →「シンプルチャット」で登録したモデルを選択します。
 4. 「新しいセッションを開始」からメッセージを送信し、応答と履歴を確認します。
-
-管理ユーザーは未作成の場合のみ自動作成されます。作成後のパスワード変更には次を使用できます。
-
-```bash
-docker compose exec backend python manage.py changepassword admin
-```
-
-このCompose構成はローカル演習向けです。外部公開には認証・アクセス制御や各環境の設定が必要です。
 
 ## RAGを使う場合
 
@@ -99,6 +112,7 @@ docker compose exec backend python manage.py makemigrations --check --dry-run
 bash scripts/test-backend.sh
 bash scripts/lint-backend.sh
 bash scripts/lint-frontend.sh
+docker compose exec frontend npm run test:unit
 docker compose exec frontend npm run build
 ```
 
@@ -113,7 +127,7 @@ docker compose --profile e2e build e2e
 bash scripts/test-e2e.sh
 ```
 
-E2Eサービスは専用の `e2e` プロファイルで実行します。テストスクリプトは必要なアプリのサービスを起動します。現行のテストはスタート画面から機能メニューへの遷移とスクリーンショットの比較を確認します。LLMが応答することは、前述のチャット操作で別途確認してください。
+E2Eサービスは専用の `e2e` プロファイルで実行します。テストスクリプトは必要なアプリのサービスを起動します。認証APIの応答をモックし、ログイン・ログアウト、保護画面への遷移、期限到達、休止復帰、再読み込み、401・403・通信障害の区別を確認します。既存のスタート画面から機能メニューへの遷移とスクリーンショット比較も実行します。実サーバーへのログインとLLMの応答は、前述の操作で別途確認してください。
 
 詳細は [E2Eガイド](../e2e/README.md) を参照してください。
 
@@ -134,6 +148,7 @@ cd ../frontend
 npm ci
 npm run typecheck
 npm run lint
+npm run test:unit
 npm run build
 cd ..
 ```

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   AppBar,
   Toolbar,
   IconButton,
@@ -53,6 +54,7 @@ export default function ChatPage() {
 
   const [sessionTitle, setSessionTitle] = useState(agentName || "");
   const [messages, setMessages] = useState([]);
+  const [error, setError] = useState(null);
   const [input, setInput] = useState("");
   const [isComposing, setIsComposing] = useState(false);
   const listEndRef = useRef(null);
@@ -68,6 +70,7 @@ export default function ChatPage() {
       return;
     }
     (async () => {
+      setError(null);
       try {
         const ms = await apiGetMessages(activeSessionId);
         // Map backend fields to UI as needed
@@ -85,7 +88,8 @@ export default function ChatPage() {
           agentName ||
             (firstUser ? firstUser.content.slice(0, 20) : "New Chat"),
         );
-      } catch {
+      } catch (failure) {
+        setError(failure.message);
         setMessages([]);
         setSessionTitle(agentName || "New Chat");
       }
@@ -104,6 +108,7 @@ export default function ChatPage() {
 
   const handleSend = async () => {
     if (!canSend) return;
+    setError(null);
     const text = input.trim();
     setInput("");
     try {
@@ -154,7 +159,7 @@ export default function ChatPage() {
       setMessages((prev) => [...prev, assistantMsg]);
       if (!sessionTitle) setSessionTitle(text.slice(0, 20));
     } catch (e) {
-      alert(`送信に失敗しました: ${e.message}`);
+      setError(e.message);
     }
   };
 
@@ -174,6 +179,7 @@ export default function ChatPage() {
           </Typography>
         </Toolbar>
       </AppBar>
+      {error && <Alert severity="error">{error}</Alert>}
       <Container
         maxWidth="md"
         className="chat-content"

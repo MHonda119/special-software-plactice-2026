@@ -135,7 +135,7 @@ export default function AgentFormPage() {
     try {
       const [llmList, datasourceList] = await Promise.all([
         getLLMs(),
-        datasourceApi.list().catch(() => []),
+        datasourceApi.list(),
       ]);
       setLlms(llmList.filter((l) => l.is_active !== false));
       setDatasources(datasourceList.filter((d) => d.is_active !== false));

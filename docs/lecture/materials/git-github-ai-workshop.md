@@ -72,7 +72,7 @@ gh auth status
 | Issue番号 `123` | 演習2で作成したIssueの実際の番号 |
 | PR番号 `456` | 演習2で作成したPRの実際の番号 |
 
-例えばユーザー名が`student-a`なら、`docs/practice/YOUR_ID.md`は`docs/practice/student-a.md`になります。`123`や`456`は例示用の番号なので、そのまま実行しないでください。
+例えばユーザー名が`student-a`なら、`docs/lecture/students/YOUR_ID.md`は`docs/lecture/students/student-a.md`になります。`123`や`456`は例示用の番号なので、そのまま実行しないでください。
 
 ### 0-3. 講義リポジトリをcloneする
 
@@ -215,7 +215,7 @@ Issueでやることを決める → ブランチを作る → 編集・確認�
 Git・GitHub・AI開発支援の使い方を、自分の言葉で説明できるようにする。
 
 ## 作業内容
-- docs/practice/YOUR_ID.mdを追加する。
+- docs/lecture/students/YOUR_ID.mdを追加する。
 - Git、GitHub、gh、MCP、Skillsで学んだことを記録する。
 
 ## 完了条件
@@ -247,10 +247,10 @@ git branch --show-current
 ### 2-3. 自分の学習メモを追加する
 
 ```bash
-mkdir -p docs/practice
+mkdir -p docs/lecture/students
 ```
 
-VS Codeで`docs/practice/YOUR_ID.md`を作成します。次の例をもとに、GitとGitHubの項目を**自分の言葉**で書きます。残りの項目は後半の演習で追記します。
+VS Codeで`docs/lecture/students/YOUR_ID.md`を作成します。次の例をもとに、GitとGitHubの項目を**自分の言葉**で書きます。残りの項目は後半の演習で追記します。
 
 ```markdown
 # Git・GitHub学習メモ
@@ -282,7 +282,7 @@ VS Codeで`docs/practice/YOUR_ID.md`を作成します。次の例をもとに�
 
 ```bash
 git status
-git add docs/practice/YOUR_ID.md
+git add docs/lecture/students/YOUR_ID.md
 git diff --staged
 git commit -m "docs: YOUR_IDのGit・GitHub学習メモを追加"
 git push -u origin test/YOUR_ID-git-github
@@ -370,14 +370,14 @@ gh issue comment 123 --repo MHonda119/special-software-plactice-2026 --body "学
 
 ### 3-3. 学習メモを更新して、同じPRに反映する
 
-`docs/practice/YOUR_ID.md`の「gh」を更新します。
+`docs/lecture/students/YOUR_ID.md`の「gh」を更新します。
 
 - 実行した`gh`コマンドを1つ、用途とともに書く。
 - `git`と`gh`の違いを1文で書く。
 
 ```bash
 git diff
-git add docs/practice/YOUR_ID.md
+git add docs/lecture/students/YOUR_ID.md
 git diff --staged
 git commit -m "docs: ghの学習内容を追記"
 git push
@@ -473,7 +473,7 @@ AIの文章だけで判断せず、ブラウザのIssue本文と比較してく�
 続けて、次の依頼を送ります。
 
 ```text
-取得したIssueの完了条件と、docs/practice/YOUR_ID.mdを確認してください。
+取得したIssueの完了条件と、docs/lecture/students/YOUR_ID.mdを確認してください。
 「MCP」の節に、GitHub MCPでIssueを取得した流れと、
 GitHubの画面の内容と照合して気づいたことを短く追記してください。
 変更するのはこのファイルだけにしてください。
@@ -486,7 +486,7 @@ commit、push、GitHubへの投稿は行わず、変更内容を説明してく�
 ```bash
 git status
 git diff
-git add docs/practice/YOUR_ID.md
+git add docs/lecture/students/YOUR_ID.md
 git diff --staged
 git commit -m "docs: GitHub MCPの学習内容を追記"
 git push
@@ -567,7 +567,7 @@ description: Git・GitHub演習の学習メモを整理する。学習メモの�
 4. 続けて、次の依頼を入力します。
 
 ```text
-/study-note-YOUR_ID docs/practice/YOUR_ID.mdを整理してください。
+/study-note-YOUR_ID docs/lecture/students/YOUR_ID.mdを整理してください。
 今回学んだことは「Skillsは繰り返す作業手順を保存して使えること」です。
 Skillsの節に、この説明と今回の使い方を追記してください。
 ```
@@ -596,7 +596,7 @@ git diff
 新しいSkillは未追跡ファイルなので、addした後にその内容も確認します。
 
 ```bash
-git add .github/skills/study-note-YOUR_ID/SKILL.md docs/practice/YOUR_ID.md
+git add .github/skills/study-note-YOUR_ID/SKILL.md docs/lecture/students/YOUR_ID.md
 git diff --staged
 git commit -m "docs: 学習メモ整理Skillと振り返りを追加"
 git push
