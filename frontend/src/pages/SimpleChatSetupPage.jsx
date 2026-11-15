@@ -18,7 +18,12 @@ import {
   Typography,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { getLLMs, createSession, listSessions } from "../services/apiClient.js";
+import {
+  getLLMs,
+  createSession,
+  listSessions,
+  agentApi,
+} from "../services/apiClient.js";
 
 export default function SimpleChatSetupPage() {
   const navigate = useNavigate();
@@ -26,6 +31,7 @@ export default function SimpleChatSetupPage() {
   const [llmId, setLlmId] = useState("");
   const [sessions, setSessions] = useState([]);
   const [error, setError] = useState(null);
+  const [openingSession, setOpeningSession] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -39,7 +45,34 @@ export default function SimpleChatSetupPage() {
     })();
   }, []);
 
-  const canStart = useMemo(() => Boolean(llmId), [llmId]);
+  const canStart = useMemo(
+    () => Boolean(llmId) && !openingSession,
+    [llmId, openingSession],
+  );
+
+  const handleResume = async (session) => {
+    if (openingSession) return;
+    setOpeningSession(true);
+    setError(null);
+    try {
+      const uuid = session.uuid || session.id;
+      if (session.agent) {
+        const agent = await agentApi.retrieve(session.agent);
+        const query = new URLSearchParams({
+          agentId: agent.id,
+          agentName: agent.name,
+          usecaseType: agent.usecase_type,
+        });
+        navigate(`/chat/${uuid}?${query.toString()}`);
+      } else {
+        navigate(`/chat/${uuid}`);
+      }
+    } catch (failure) {
+      setError(failure.message);
+    } finally {
+      setOpeningSession(false);
+    }
+  };
 
   const handleStart = async () => {
     setError(null);
@@ -112,7 +145,8 @@ export default function SimpleChatSetupPage() {
                 <Fragment key={s.id}>
                   <ListItem disablePadding>
                     <ListItemButton
-                      onClick={() => navigate(`/chat/${s.uuid || s.id}`)}
+                      onClick={() => handleResume(s)}
+                      disabled={openingSession}
                     >
                       <ListItemText primary={s.title || s.uuid} />
                     </ListItemButton>

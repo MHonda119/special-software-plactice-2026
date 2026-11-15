@@ -34,6 +34,7 @@ const DEFAULT_FORM = {
   topK: "3",
   citationChars: "120",
   embedModel: "",
+  maxSteps: "8",
 };
 
 function mapAgentToForm(agent) {
@@ -53,6 +54,7 @@ function mapAgentToForm(agent) {
         : "120",
     embedModel:
       config.embed_model !== undefined ? String(config.embed_model) : "",
+    maxSteps: String(config.max_steps ?? 8),
   };
 }
 
@@ -68,6 +70,11 @@ export default function AgentFormPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const isReAct = form.usecaseType === "REACT_CHAT";
+  const validMaxSteps =
+    Number.isInteger(Number(form.maxSteps)) &&
+    Number(form.maxSteps) >= 1 &&
+    Number(form.maxSteps) <= 8;
 
   const requiresDatasource = useMemo(() => {
     const meta = findUsecaseMeta(form.usecaseType);
@@ -171,12 +178,31 @@ export default function AgentFormPage() {
     if (requiresDatasource && form.datasourceIds.length === 0) return false;
     if (form.usecaseType === "RAG_CHAT" && !form.embedModel.trim())
       return false;
+    if (
+      isReAct &&
+      (!validMaxSteps || llmMap.get(String(form.llmId))?.provider !== "OPENAI")
+    )
+      return false;
     return true;
-  }, [form, requiresDatasource, loading, saving]);
+  }, [
+    form,
+    requiresDatasource,
+    loading,
+    saving,
+    isReAct,
+    validMaxSteps,
+    llmMap,
+  ]);
 
   const buildConfigPayload = () => {
     const base = { ...(originalAgent?.config || {}) };
-    base.temperature = Number(form.temperature || 0.2);
+    if (isReAct) {
+      base.max_steps = Number(form.maxSteps);
+      delete base.temperature;
+    } else {
+      base.temperature = Number(form.temperature || 0.2);
+      delete base.max_steps;
+    }
 
     if (form.usecaseType === "RAG_CHAT") {
       if (form.topK) base.top_k = Number(form.topK);
@@ -293,12 +319,23 @@ export default function AgentFormPage() {
                   onChange={handleChange("llmId")}
                 >
                   {llms.map((llm) => (
-                    <MenuItem key={llm.id} value={llm.id}>
+                    <MenuItem
+                      key={llm.id}
+                      value={llm.id}
+                      disabled={isReAct && llm.provider !== "OPENAI"}
+                    >
                       {`${llm.name} (${llm.provider}:${llm.model})`}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
+              {isReAct &&
+                form.llmId &&
+                llmMap.get(String(form.llmId))?.provider !== "OPENAI" && (
+                  <Alert severity="error">
+                    有効な OPENAI の LLM が必要です。
+                  </Alert>
+                )}
               <TextField
                 label="システムプロンプト"
                 multiline
@@ -386,34 +423,51 @@ export default function AgentFormPage() {
                   )}
                 </Stack>
               )}
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+              {isReAct ? (
                 <TextField
-                  label="temperature"
-                  value={form.temperature}
-                  onChange={handleChange("temperature")}
+                  label="モデル問い合わせ上限 (max_steps)"
+                  value={form.maxSteps}
+                  onChange={handleChange("maxSteps")}
                   type="number"
-                  inputProps={{ step: 0.1 }}
-                  fullWidth
+                  inputProps={{ min: 1, max: 8, step: 1 }}
+                  required
+                  error={!validMaxSteps}
+                  helperText={
+                    !validMaxSteps
+                      ? "1〜8 の整数を指定してください。"
+                      : undefined
+                  }
                 />
-                <TextField
-                  label="top_k"
-                  value={form.topK}
-                  onChange={handleChange("topK")}
-                  type="number"
-                  inputProps={{ min: 1 }}
-                  disabled={form.usecaseType !== "RAG_CHAT"}
-                  fullWidth
-                />
-                <TextField
-                  label="citation chars"
-                  value={form.citationChars}
-                  onChange={handleChange("citationChars")}
-                  type="number"
-                  inputProps={{ min: 20 }}
-                  disabled={form.usecaseType !== "RAG_CHAT"}
-                  fullWidth
-                />
-              </Stack>
+              ) : (
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                  <TextField
+                    label="temperature"
+                    value={form.temperature}
+                    onChange={handleChange("temperature")}
+                    type="number"
+                    inputProps={{ step: 0.1 }}
+                    fullWidth
+                  />
+                  <TextField
+                    label="top_k"
+                    value={form.topK}
+                    onChange={handleChange("topK")}
+                    type="number"
+                    inputProps={{ min: 1 }}
+                    disabled={form.usecaseType !== "RAG_CHAT"}
+                    fullWidth
+                  />
+                  <TextField
+                    label="citation chars"
+                    value={form.citationChars}
+                    onChange={handleChange("citationChars")}
+                    type="number"
+                    inputProps={{ min: 20 }}
+                    disabled={form.usecaseType !== "RAG_CHAT"}
+                    fullWidth
+                  />
+                </Stack>
+              )}
               <Stack direction="row" spacing={2} justifyContent="flex-end">
                 <Button onClick={() => navigate("/agent")}>キャンセル</Button>
                 <Button

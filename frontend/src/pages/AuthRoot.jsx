@@ -80,7 +80,13 @@ export function RequireAuth() {
   }
 
   return (
-    <Box sx={{ height: "100dvh", display: "flex", flexDirection: "column" }}>
+    <Box
+      sx={{
+        height: "min(100%, calc(100dvh - 40px))",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <AppBar
         position="static"
         color="default"
