@@ -6,7 +6,7 @@
 
 主題は Usecase です。HTTP を受け取る View と、入力を検証する Serializer、状態を保存する Model を組み合わせ、「どの順番で処理し、どこまで成功したら保存するか」を実装します。単に参照スクリプトを View に貼り付ける演習にはしません。
 
-この資料は講師用の進行案と受講者向けの学習案内です。ReAct は **既存の `POST /api/agents/{id}/execute/` に演習で追加する機能であり、現在のバックエンドに実装済みではありません**。新しい対話 Route は作りません。本教材の追加自体ではアプリケーションを変更しません。
+この資料は講師用の進行案と受講者向けの学習案内です。ReAct は **既存の `POST /api/agents/{id}/execute/` に演習で追加する機能**です。新しい対話 Route は作りません。資料用ブランチ `docs/react-agent-backend-lecture` には教材のみを置き、検証用ブランチ `exercise/react-agent-backend-verification` には [ReActAgentUsecase](../../../backend/core/react_usecases.py) などの完成実装とテストを追加しています。
 
 具体的なコード例と検証手順は [ReAct Agent バックエンド実装資料](react-agent-backend-implementation.md) を参照してください。
 

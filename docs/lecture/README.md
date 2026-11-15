@@ -11,7 +11,8 @@ docs/lecture/
 │   ├── git-github-ai-workshop.md
 │   ├── orm-database-debug-workshop.md
 │   ├── react-agent-backend-lecture.md
-│   └── react-agent-backend-implementation.md
+│   ├── react-agent-backend-implementation.md
+│   └── react-agent-local-development.md
 └── students/
     ├── README.md
     └── nattoinf.md
@@ -28,6 +29,7 @@ docs/lecture/
 - [バックエンド演習: ORM・データベース・テスト・デバッグ](materials/orm-database-debug-workshop.md) では、Auth API と Session API を題材に保存処理とデバッグを扱います。
 - [バックエンド実装講義: Usecase を中心に ReAct Agent を組み込む](materials/react-agent-backend-lecture.md) では、2 コマ各 90 分の講義構成、到達目標、責務分担、評価基準を示します。
 - [ReAct Agent バックエンド実装資料](materials/react-agent-backend-implementation.md) では、参照スクリプトをもとに Usecase、View、Serializer、Model を接続する実装手順とテスト例を扱います。
+- [ReAct Agent ローカル開発・動作確認](materials/react-agent-local-development.md) では、Compose / Vite の起動、GPT-6 luna の登録、UI での二往復と状態表示、検証・エラー切り分けを扱います。
 
 ## 関連資料
 

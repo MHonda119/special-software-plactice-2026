@@ -4,7 +4,7 @@
 
 [講義構成](react-agent-backend-lecture.md) の演習手順です。[06_react_agent.py](../../../scripts/api_basics/06_react_agent.py) を参考に、既存の Agent 実行 API に ReAct の実行方式を追加します。新しい Route と React のフロントエンド実装は対象外です。
 
-**この資料中の新しいモジュールと `REACT_CHAT` 機能は、演習で追加する完成例です。教材の追加だけでは実装されません。** コードブロックは、表示された対象へ受講者が実装するためのものです。既存のファイル全体を置き換えないでください。
+**この資料中の新しいモジュールと `REACT_CHAT` 機能は、演習で追加する完成例です。** 資料用ブランチ `docs/react-agent-backend-lecture` は教材だけ、検証用ブランチ `exercise/react-agent-backend-verification` は完成実装とテストも含みます。コードブロックは受講者が実装するための例です。既存のファイル全体を置き換えないでください。検証ブランチでの実行結果は末尾に記載します。
 
 ### 演習での変更範囲
 
@@ -183,12 +183,15 @@ def get_product_price(product):
     return {"product": product, "price_yen": PRODUCT_PRICES[product]}
 
 
-def calculate(operation, a, b):
+def calculate(operation, left, right):
     if not isinstance(operation, str) or operation not in OPERATIONS:
         raise ValueError("対応していない演算です。")
-    if any(type(value) not in (int, float) or not isfinite(value) for value in (a, b)):
-        raise ValueError("a と b には有限の数値を指定してください。")
-    result = OPERATIONS[operation](a, b)
+    if any(
+        type(value) not in (int, float) or not isfinite(value)
+        for value in (left, right)
+    ):
+        raise ValueError("left と right には有限の数値を指定してください。")
+    result = OPERATIONS[operation](left, right)
     if not isfinite(result):
         raise ValueError("計算結果が数値の範囲を超えました。")
     return {"result": result}
@@ -210,15 +213,15 @@ TOOLS = [
     {
         "type": "function",
         "name": "calculate",
-        "description": "四則演算。subtract は a-b、divide は a/b。",
+        "description": "四則演算。subtract は left-right、divide は left/right。",
         "parameters": {
             "type": "object",
             "properties": {
                 "operation": {"type": "string", "enum": list(OPERATIONS)},
-                "a": {"type": "number"},
-                "b": {"type": "number"},
+                "left": {"type": "number"},
+                "right": {"type": "number"},
             },
-            "required": ["operation", "a", "b"],
+            "required": ["operation", "left", "right"],
             "additionalProperties": False,
         },
         "strict": True,
@@ -244,6 +247,8 @@ def execute_tool(name, arguments_json):
 ```
 
 `TOOLS` はモデルに渡す説明、`TOOL_FUNCTIONS` はサーバーが実行できる関数の対応表です。モデルの出力を `eval` しません。`bool` は Python では `int` の派生型ですが、ここでは数値として許可しないため `type(value)` で確認します。JSON Schema があっても、Python 側の検証を省略しません。
+
+参照スクリプトの計算引数 `a` / `b` は、バックエンドでは `left` / `right` に置き換えています。Python 関数、JSON Schema、ツール呼び出しのテストを同じ名前に揃えてください。
 
 **確認**: `execute_tool("get_product_price", '{"product":"ノート"}')` は価格を返し、未知のツール、不正 JSON、ゼロ除算は `error` を持つ辞書になります。
 
@@ -643,10 +648,10 @@ class ReActRunnerTests(TestCase):
                 tool_call("get_product_price", {"product": "ノート"}, "price-1"),
             ]),
             response([tool_call(
-                "calculate", {"operation": "multiply", "a": 250, "b": 3}, "math-1",
+                "calculate", {"operation": "multiply", "left": 250, "right": 3}, "math-1",
             )]),
             response([tool_call(
-                "calculate", {"operation": "subtract", "a": 1000, "b": 750}, "math-2",
+                "calculate", {"operation": "subtract", "left": 1000, "right": 750}, "math-2",
             )]),
             response(text="お釣りは250円です。"),
         ]
@@ -723,10 +728,10 @@ class ReActRunnerTests(TestCase):
             ("unknown", "{}"),
             ("calculate", "not-json"),
             ("calculate", "[]"),
-            ("calculate", '{"operation":"divide","a":1,"b":0}'),
-            ("calculate", '{"operation":"add","a":true,"b":1}'),
-            ("calculate", '{"operation":"add","a":1e999,"b":1}'),
-            ("calculate", '{"operation":[],"a":1,"b":1}'),
+            ("calculate", '{"operation":"divide","left":1,"right":0}'),
+            ("calculate", '{"operation":"add","left":true,"right":1}'),
+            ("calculate", '{"operation":"add","left":1e999,"right":1}'),
+            ("calculate", '{"operation":[],"left":1,"right":1}'),
             ("get_product_price", '{"product":"ノート","extra":1}'),
         ]
         for name, arguments in cases:
@@ -1167,3 +1172,34 @@ console.log(second.result.message.content);
 
 Agent の `execute` への統合は発展課題ではなく本演習の必修範囲です。Model choices、Serializer、migration、View の分岐、API 仕様を一緒に更新したことを確認します。`CUSTOM` は Model に存在しますが、便宜的に流用しません。BASIC_CHAT / RAG_CHAT も Usecase 化する作業は [講義の発展課題](react-agent-backend-lecture.md) として切り分けます。
 
+## 13. 検証ブランチでの実装結果
+
+資料用ブランチの教材コミットは `364680c`。検証用ブランチ `exercise/react-agent-backend-verification` へ同じコミットを取り込み、以下の実ファイルに実装しています。資料のコードをメモリへ注入する検証とは異なり、Django がファイルを読み込みます。
+
+| 実装 | ファイル |
+| --- | --- |
+| 許可済みツール | [react_tools.py](../../../backend/core/react_tools.py) |
+| Responses API の反復処理 | [react_runner.py](../../../backend/core/react_runner.py) |
+| SDK クライアントの生成 | [react_clients.py](../../../backend/core/react_clients.py) |
+| Agent と会話の保存 | [react_usecases.py](../../../backend/core/react_usecases.py) |
+| choices の変更 | [0005_add_react_chat_usecase.py](../../../backend/core/migrations/0005_add_react_chat_usecase.py) |
+| SDK と HTTP 形式の統合テスト | [test_react_sdk.py](../../../backend/core/tests/test_react_sdk.py) |
+
+検証は通常の backend イメージへ OpenAI SDK の依存を追加してビルドし、既存のテストスクリプトで実行しました。テスト DB はインメモリ SQLite で、新しい migration を含めて適用されます。テスト内の外部 LLM はモックで、SDK の統合テストは本物の SDK と `httpx.MockTransport` による疑似 HTTP 応答を組み合わせています。
+
+```bash
+docker compose build backend
+bash scripts/test-backend.sh
+bash scripts/lint-backend.sh
+docker compose run --rm --no-deps -T --entrypoint python backend \
+    manage.py makemigrations --check --dry-run --settings lecture_system.test_settings
+```
+
+- backend の全テスト 83 件が成功。新しい ReAct のテストは 34 件です。
+- SDK の統合テストでは、同じ Agent / UUID の 2 対話で価格取得・乗算・減算・回答まで進み、250 円と 260 円の答え、usage、履歴、DB の 4 メッセージ、クライアントの close を確認しています。
+- 不正入力、他 Agent の会話、上限、空回答、拒否、上流エラー、保存のロールバックを検証しています。上流の 401 / 429 / 500 は詳細を公開せず 502 に変換し、再試行しないことも確認しています。
+- backend 全体の Ruff が成功し、migration の未作成差分はありません。
+- frontend に ReAct の作成・編集、max_steps、実行状態・usage、Agent会話の再開を追加しました。APIの読み取り専用 `agent` と履歴の `usage` により、再読込しても確認できます。ブラウザのReAct 6ケースと既存認証28ケース、frontend単体14件、型チェック・ESLint・本番ビルドが成功しています。
+- 配布キーはコードへ登録していません。実 DB の GPT-6 luna 登録、料金の発生する実 API 通信、実APIに接続したブラウザー操作、PostgreSQL への新 migration 適用は未実施です。これらは講師の実機確認として別途行います。
+
+UIから起動・登録・二往復を確認する手順は [ReAct Agent ローカル開発・動作確認](react-agent-local-development.md) を参照してください。表示する状態はリクエストの待機・実行中・完了・失敗で、途中の推論・ツール履歴を表示する機能ではありません。

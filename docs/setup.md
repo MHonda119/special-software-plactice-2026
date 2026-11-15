@@ -98,6 +98,10 @@ docker compose exec ollama ollama pull nomic-embed-text
 
 詳細な項目やリクエスト例は [Datasource API](../backend/documents/datasource_api.md) と [Agent API](../backend/documents/agent_api.md) を参照してください。これらには将来の設計案も含まれます。
 
+## ReActを使う場合
+
+実装を含む検証作業ツリーでは、OPENAIのLLMを登録し、「エージェント」で `ReActチャット` と問い合わせ上限1〜8を選びます。データソースは不要です。講義配布キーとGPT-6 lunaを使う登録・会話・失敗確認は [ReAct Agent ローカル開発・動作確認](lecture/materials/react-agent-local-development.md) を参照してください。
+
 ## 検証
 
 以下のコマンドで静的検証、バックエンドテスト、ブラウザテストを実行できます。
