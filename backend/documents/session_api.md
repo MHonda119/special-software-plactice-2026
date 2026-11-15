@@ -1,5 +1,7 @@
 # Chat Session API ドキュメント
 
+現行契約は [Session API仕様](../../docs/backend/api/sessions.md) を参照してください。ReActの会話再開用に、セッションの読み取り専用 `agent` と、履歴メッセージの保存済み `usage` を追加しています。以下は初期の説明を含みます。所属は通常のセッション作成・更新から設定・解除できません。Agentの会話は `/api/agents/{id}/execute/` で継続し、途中の推論・ツール履歴は返しません。
+
 > 注記: 指示にあった `bacjend/documents` は typo と判断し `backend/documents` に配置。
 
 ## 概要
