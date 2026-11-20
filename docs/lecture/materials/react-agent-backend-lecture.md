@@ -1,0 +1,135 @@
+# バックエンド実装講義: Usecase を中心に ReAct Agent を組み込む
+
+## 1. 講義の位置付け
+
+[06_react_agent.py](../../../scripts/api_basics/06_react_agent.py) の「判断 → ツール実行 → 結果の観測」を、Django REST Framework の既存 Agent 実行 API へ組み込む講義です。React の画面開発ではありません。以降、エージェントの方式を **ReAct**、参照スクリプトの Python クラス名を `ReActAgent` と表記します。
+
+主題は Usecase です。HTTP を受け取る View と、入力を検証する Serializer、状態を保存する Model を組み合わせ、「どの順番で処理し、どこまで成功したら保存するか」を実装します。
+
+この資料は受講者向けの学習案内です。ReAct は **既存の `POST /api/agents/{id}/execute/` に演習で追加する機能**です。新しい対話 Route は必要ありません。。資料用ブランチ `docs/react-agent-backend-lecture` には教材のみを置き、検証用ブランチ `exercise/react-agent-backend-verification` には [ReActAgentUsecase](../../../backend/core/react_usecases.py) などの完成実装とテストを追加しておきます。適宜参考にしてください。
+
+具体的なコード例と検証手順は [ReAct Agent バックエンド実装資料](react-agent-backend-implementation.md) を参照してください。
+
+### 演習目標
+
+- View、Serializer、Usecase、Model、外部 API クライアントの責務を説明できる。
+- モデルが関数を直接実行するのではなく、サーバーが許可したツールだけを実行することを説明できる。
+- `response.output`、`function_call`、`function_call_output`、`call_id` の関係を説明できる。
+- ReAct の反復処理と会話の保存処理を分離して実装できる。
+- 同じ会話 UUID で対話を継続し、失敗時に中途半端なメッセージを残さない実装を説明できる。
+- Agent の `usecase_type` に `REACT_CHAT` を追加し、既存 `execute` の機能として呼び出せる。
+- 講義で配布する API キーを使って GPT-6 luna を LLM に登録し、ReAct Agent へ関連付けて利用できる。
+- 実 API に依存せず、正常終了、上限到達、ツールエラー、HTTP 入力エラーを検証できる。
+
+
+## 2. 現在の実装から出発する
+
+| 観察対象 | 現在の振る舞い | 講義で扱う点 |
+| --- | --- | --- |
+| [参照スクリプト](../../../scripts/api_basics/06_react_agent.py) | `responses.create` を反復し、登録済み Python 関数を実行する。履歴は実行ごとに初期化する | ReAct ループの原型 |
+| [ChatSessionViewSet.chat](../../../backend/core/views.py) | 入力を取り出し、`ChatInSessionUsecase` を呼ぶ | HTTP とアプリケーション処理の境界 |
+| [ChatInSessionUsecase](../../../backend/core/usecases.py) | user 保存 → 履歴取得 → `client.chat` → assistant 保存を行う | Usecase の役割とトランザクション |
+| [AgentViewSet.execute](../../../backend/core/views.py) | BASIC_CHAT / RAG_CHAT の分岐と保存処理を View 内で行う | すべての既存処理が Usecase 化されているわけではない |
+| [Serializer](../../../backend/core/serializers.py) | API のフィールドと入力検証を定義する | `validated_data` から安全に Usecase へ渡す |
+| [Model](../../../backend/core/models.py) | `ChatSession` が LLM を参照し、`Message` が会話に属する | 既存テーブルで保存できる範囲 |
+| [LLM クライアント](../../../backend/core/llm_clients.py) | 共通の `chat` は本文と usage を返す。OpenAI 実装は Chat Completions を使う | Responses API の出力全体を扱う専用クライアントが必要 |
+
+`options` に `tools` を加えるだけでは参照例を移植できません。既存の `ChatResult` にはツール呼び出しや `call_id` がなく、OpenAI 実装も `tools` を送信対象にしていません。この違いを、実装前に説明します。
+
+## 3. 演習で採用する構成
+
+`Agent.usecase_type` に `REACT_CHAT` を追加し、既存の `POST /api/agents/{id}/execute/` で実行方式を選択します。BASIC_CHAT / RAG_CHAT の動作と既存の応答形式は維持します。通常の `/chat/` や Router は変更せず、新しい Route は追加しません。
+
+リクエストは既存と同じ `input`、継続時の `session_uuid`、`options` を使います。ReAct の上限は `options.max_steps` で指定します。応答も `agent_id`、`session_uuid`、`result.message`、`usage` に揃えます。Model choices、Serializer の許可値、migration、View の分岐、API 契約の更新を、講義の実装範囲に含めます。
+
+```mermaid
+flowchart LR
+    HTTP[POST agents/id/execute] --> View[AgentViewSet.execute]
+    View --> Branch{Agent.usecase_type}
+    Branch -->|REACT_CHAT| Serializer[ReActExecuteSerializer / 設定検証]
+    Serializer --> Usecase[ReActAgentUsecase]
+    Branch -->|BASIC_CHAT / RAG_CHAT| Existing[既存処理]
+    Usecase --> Model[Agent / ChatSession / Message]
+    Usecase --> Runner[ReActRunner]
+    Runner --> Client[Responses API client]
+    Runner --> Tools[許可済みツール]
+    Client --> Runner
+    Tools --> Runner
+```
+
+| 層 | 担当すること | 担当しないこと |
+| --- | --- | --- |
+| View | 認証済みリクエストの受付、Agent の取得、実行方式の分岐、HTTP 応答への変換 | ReAct ループ、ツールの直接実行 |
+| Serializer | 空文字、型、長さ、ステップ上限の検証 | DB への会話保存、外部 LLM 呼び出し |
+| Usecase | Agent に属する会話の新規作成・再利用、履歴の取得、Runner 呼び出し、成功した対話の保存 | HTTP ステータスコードの決定、SDK 固有オブジェクトの操作 |
+| Runner | 判断・実行・観測の反復と終了条件 | Django ORM と HTTP 応答 |
+| Model | 会話とメッセージの永続化 | LLM の行動判断 |
+| Client / Tools | 外部 API 通信 / 許可された小さな処理 | リクエスト全体の進行管理 |
+
+## 4. スコープ
+
+- ツールは参照例の価格取得と四則演算のみ。任意のコード、ファイル操作、外部送信は許可しません。
+- 講義で配布する API キーで `GPT-6 luna`（`gpt-6-luna`）を OPENAI の LLM として登録し、`REACT_CHAT` の Agent から参照します。既存の Ollama / Gemini への対応は対象外です。
+- ReAct の分岐は、既存 View の options 結合・会話作成・system メッセージ保存より前に置きます。初回の失敗で空の会話を作らず、他 Agent に属する UUID は 404 にします。
+- Agent の `system_prompt` は Runner の指示へ渡します。DB に system メッセージを重複保存せず、`Agent.tools` による任意ツールの有効化は行いません。
+- SDK の履歴は 1 リクエストのメモリ内に保持します。DB には利用者の発言と最終回答だけを保存し、ツールの実行結果やモデル内部の推論過程は保存・公開しません。
+- 次のリクエストでは DB の user / assistant を読み直します。ツール実行中の中断・再開は扱いません。
+- 外部通信は DB トランザクションの外で行い、成功後の user / assistant の保存だけを短いトランザクションでまとめます。
+- 同一会話に対する同時送信、再送時の二重実行、会話履歴の圧縮は発展課題です。必修演習では 1 会話に逐次送信します。
+
+
+## 5. ポイント
+
+### Usecase は「ループの別名」ではない
+
+Runner は「答えを得るまで何を繰り返すか」、Usecase は「どの Agent と会話を使い、何を履歴として渡し、何を保存して返すか」を扱います。Runner が成功しても保存に失敗すれば、API としての対話処理は成功ではありません。
+
+既存の `ChatInSessionUsecase.run` は外部通信を含むメソッド全体に `transaction.atomic` を付けています。本演習はその実装を無断で修正せず、新しい Usecase で「外部通信の間、DB トランザクションを維持しない」設計を比較します。
+
+### LLM の出力も信頼しない入力
+
+JSON Schema の `strict` は API 側の出力制約です。サーバー側でもツール名、引数の型、有限な数値、計算結果を検証します。未知のツール名を `eval` や `getattr` で実行してはいけません。
+
+### 2 種類の履歴
+
+1. DB 履歴: 次の対話へ引き継ぐ user / assistant のテキスト。
+2. 実行中の履歴: DB 履歴に今回の質問、SDK の出力全体、ツール結果を加えたもの。
+
+`Message` の role に `tool` があっても、それだけで Responses API の実行履歴を再構築できるわけではありません。SDK の出力種別や `call_id` なども必要です。本演習では不完全な再構築をせず、実行途中の履歴はメモリ内に限定します。
+
+### セキュリティとコスト
+
+認証セッションと会話 UUID は別物です。現在の `ChatSession` にユーザー所有者の外部キーはなく、ログイン済みであることだけでは会話の所有権を保証できません。実データのある共有環境へ、演習 API をそのまま公開しないでください。
+
+`max_steps` はモデル問い合わせ回数の上限であり、HTTP 全体の制限時間や課金上限ではありません。会話の長さ、SDK の再試行、出力トークン数にも制限が必要です。API キー、Authorization ヘッダー、会話本文、モデル内部の推論過程をログや提出物へ出力しません。
+
+## 6. 演習成果物について
+
+特段の提出物は求めませんが、コードベースでの保存先は [学生用ディレクトリ](../students/README.md) の規約に従ってください。コードを変更する場合は受講者の作業ブランチを使用しましょう。
+
+| 理解度チェック | 確認位ポイント |
+| --- | --- |
+| 処理経路の図 | HTTP → Serializer → Usecase → Runner / Model の役割が分かれている |
+| 実装差分 | 新しい Route を作らず、`REACT_CHAT` を既存の `/agents/{id}/execute/` から実行できる |
+| テスト結果 | 正常対話、履歴再利用、別 Agent の UUID 拒否、失敗時の未保存、入力エラー、ステップ上限を確認している。テストベースのDebugができるか？ |
+| 実機確認 | GPT-6 luna に関連付けた ReAct Agent で 2 回対話し、キーを含まない結果だけを記録している |
+| 学習メモ | 「ツール実行主体」「保存境界」「テストで置き換えた箇所」を説明している |
+| 制約の説明 | 逐次送信、OPENAI 限定、途中再開なし、会話所有権未対応を明示している |
+
+### 確認事項
+
+1. `function_call` が返ってきた時点で、価格取得は実行済みか。
+2. ツールの戻り値だけを履歴へ追加し、`call_id` を捨てると何が困るか。
+3. ツールエラーは必ず HTTP 500 にすべきか。モデルが修正できる失敗との違いは何か。
+4. なぜ外部 API の待ち時間全体を DB トランザクションで囲まないのか。
+5. 「価格を調べ直して」という 2 回目の発言に対し、何を DB から読み、何をツールで取り直すか。
+6. 同じ会話へ同時に 2 件届くと、履歴と保存順にはどのような問題が起きるか。
+
+## 7. 発展課題/考えてみよう系
+
+- BASIC_CHAT / RAG_CHAT の処理も Usecase へ切り出し、`execute` の分岐を整理する。
+- Responses API 専用の出力を共通のツール呼び出し形式へ変換し、他プロバイダーへ拡張する。
+- 会話所有者、実行 ID、冪等キー、排他制御を導入する。
+- 時間制限、履歴のトークン予算、リクエストのレート制限を追加する。
+- 実行履歴を永続化し、中断・再開と秘匿情報の削除方針を設計する。
+- 更新系ツールを追加する前に、権限確認、承認、二重実行への対策を設計する。
