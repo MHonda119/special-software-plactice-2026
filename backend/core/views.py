@@ -267,23 +267,17 @@ class AgentViewSet(viewsets.ModelViewSet):
         serializer = ReActExecuteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        if not isinstance(agent.llm.extra, dict) or not isinstance(
-            agent.config, dict
-        ):
-            return Response(
-                {"detail": "Invalid ReAct configuration"}, status=422
-            )
-        defaults = ReActSettingsSerializer(
-            data={**agent.llm.extra, **agent.config}
-        )
+        if not isinstance(agent.llm.extra, dict) or not isinstance(agent.config, dict):
+            return Response({"detail": "Invalid ReAct configuration"}, status=422)
+        defaults = ReActSettingsSerializer(data={**agent.llm.extra, **agent.config})
         if not defaults.is_valid():
-            return Response(
-                {"detail": "Invalid ReAct configuration"}, status=422
-            )
-        settings = ReActSettingsSerializer(data={
-            **defaults.validated_data,
-            **serializer.validated_data.get("options", {}),
-        })
+            return Response({"detail": "Invalid ReAct configuration"}, status=422)
+        settings = ReActSettingsSerializer(
+            data={
+                **defaults.validated_data,
+                **serializer.validated_data.get("options", {}),
+            }
+        )
         settings.is_valid(raise_exception=True)
 
         try:

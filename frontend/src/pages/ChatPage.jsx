@@ -286,10 +286,19 @@ export default function ChatPage() {
                     executionState === "failed"
                       ? "error"
                       : executionState === "completed"
-                        ? "success"
-                        : "default"
+                      ? "success"
+                      : "default"
                   }
-                  label={`ReAct: ${historyLoading ? "履歴読込中" : { idle: "待機中", running: "実行中", completed: "完了", failed: "失敗" }[executionState]}`}
+                  label={`ReAct: ${
+                    historyLoading
+                      ? "履歴読込中"
+                      : {
+                          idle: "待機中",
+                          running: "実行中",
+                          completed: "完了",
+                          failed: "失敗",
+                        }[executionState]
+                  }`}
                 />
               </Box>
               {sending && (

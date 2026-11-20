@@ -19,9 +19,7 @@ class ReActClientTests(TestCase):
     def test_explicit_base_url_wins_over_environment(self):
         self.llm.base_url = "https://example.invalid/v1"
         with (
-            patch.dict(
-                "os.environ", {"OPENAI_BASE_URL": "https://env.invalid/v1"}
-            ),
+            patch.dict("os.environ", {"OPENAI_BASE_URL": "https://env.invalid/v1"}),
             patch("core.react_clients.OpenAI") as factory,
         ):
             client = open_react_client(self.llm)
@@ -44,9 +42,7 @@ class ReActClientTests(TestCase):
                     patch("core.react_clients.OpenAI") as factory,
                 ):
                     open_react_client(self.llm)
-                self.assertEqual(
-                    factory.call_args.kwargs["base_url"], expected
-                )
+                self.assertEqual(factory.call_args.kwargs["base_url"], expected)
 
     def test_invalid_configuration_does_not_create_client(self):
         for field, value in [

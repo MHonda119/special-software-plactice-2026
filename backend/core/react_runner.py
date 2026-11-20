@@ -3,7 +3,6 @@ from dataclasses import dataclass
 
 from .react_tools import TOOLS, execute_tool
 
-
 INSTRUCTIONS = (
     "あなたは演習用の商品について答えるアシスタントです。"
     "質問に必要なツールを選び、その結果から次の行動を決めてください。"
@@ -73,11 +72,7 @@ class ReActRunner:
                     usage[key] += value
 
             history.extend(response.output)
-            calls = [
-                item
-                for item in response.output
-                if item.type == "function_call"
-            ]
+            calls = [item for item in response.output if item.type == "function_call"]
             if not calls:
                 answer = response.output_text.strip()
                 if not answer:

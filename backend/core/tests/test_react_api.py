@@ -14,9 +14,7 @@ from core.react_runner import ReActError, ReActLimitError, ReActResult
 class ReActApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.client.force_authenticate(
-            get_user_model().objects.create_user("student")
-        )
+        self.client.force_authenticate(get_user_model().objects.create_user("student"))
         self.llm = LLM.objects.create(
             name="GPT-6 luna",
             provider="OPENAI",
@@ -67,15 +65,11 @@ class ReActApiTests(TestCase):
                 content="250円です。",
                 usage={"total_tokens": 12},
             )
-            result = self.client.post(
-                self.url, {"input": "質問"}, format="json"
-            )
+            result = self.client.post(self.url, {"input": "質問"}, format="json")
 
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.data["agent_id"], self.agent.id)
-        self.assertEqual(
-            result.data["result"]["message"]["content"], "250円です。"
-        )
+        self.assertEqual(result.data["result"]["message"]["content"], "250円です。")
         session = ChatSession.objects.get(uuid=result.data["session_uuid"])
         self.assertEqual(session.agent_id, self.agent.id)
         self.assertEqual(session.messages.count(), 2)
@@ -189,18 +183,12 @@ class ReActApiTests(TestCase):
             ("OPENAI", False, "unused"),
             ("OPENAI", True, ""),
         ]:
-            with self.subTest(
-                provider=provider, active=active, key_present=bool(key)
-            ):
+            with self.subTest(provider=provider, active=active, key_present=bool(key)):
                 self.llm.provider = provider
                 self.llm.is_active = active
                 self.llm.api_key = key
-                self.llm.save(
-                    update_fields=["provider", "is_active", "api_key"]
-                )
-                result = self.client.post(
-                    self.url, {"input": "質問"}, format="json"
-                )
+                self.llm.save(update_fields=["provider", "is_active", "api_key"])
+                result = self.client.post(self.url, {"input": "質問"}, format="json")
                 self.assertEqual(result.status_code, 422)
                 self.assertEqual(self.agent.sessions.count(), 0)
 
@@ -211,9 +199,7 @@ class ReActApiTests(TestCase):
                     patch("core.views.open_react_client"),
                     patch("core.views.ReActRunner") as runner_class,
                 ):
-                    runner_class.return_value.run.return_value = ReActResult(
-                        "回答", {}
-                    )
+                    runner_class.return_value.run.return_value = ReActResult("回答", {})
                     result = self.client.post(
                         self.url,
                         {"input": "質問", "options": options},

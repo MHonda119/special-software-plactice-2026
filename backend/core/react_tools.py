@@ -2,7 +2,6 @@ import json
 import operator
 from math import isfinite
 
-
 PRODUCT_PRICES = {"ノート": 250, "ペン": 120, "消しゴム": 80}
 OPERATIONS = {
     "add": operator.add,
@@ -37,8 +36,7 @@ TOOLS = [
         "type": "function",
         "name": "get_product_price",
         "description": (
-            "商品の価格を円で取得する。"
-            "登録商品はノート、ペン、消しゴム。"
+            "商品の価格を円で取得する。" "登録商品はノート、ペン、消しゴム。"
         ),
         "parameters": {
             "type": "object",
@@ -51,10 +49,7 @@ TOOLS = [
     {
         "type": "function",
         "name": "calculate",
-        "description": (
-            "四則演算。subtract は left-right、"
-            "divide は left/right。"
-        ),
+        "description": ("四則演算。subtract は left-right、" "divide は left/right。"),
         "parameters": {
             "type": "object",
             "properties": {
@@ -81,9 +76,7 @@ def execute_tool(name, arguments_json):
     try:
         arguments = json.loads(arguments_json)
         if not isinstance(arguments, dict):
-            raise ValueError(
-                "ツールの引数は JSON オブジェクトにしてください。"
-            )
+            raise ValueError("ツールの引数は JSON オブジェクトにしてください。")
         return TOOL_FUNCTIONS[name](**arguments)
     except (ValueError, TypeError, ArithmeticError) as exc:
         return {"error": str(exc)}

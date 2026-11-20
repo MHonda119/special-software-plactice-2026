@@ -7,9 +7,7 @@ from .react_runner import ReActConfigurationError
 class ReActAgentUsecase:
     def __init__(self, agent, runner):
         if not agent.is_active or agent.usecase_type != "REACT_CHAT":
-            raise ReActConfigurationError(
-                "有効な ReAct Agent を指定してください。"
-            )
+            raise ReActConfigurationError("有効な ReAct Agent を指定してください。")
         self.agent = agent
         self.runner = runner
 
@@ -26,9 +24,7 @@ class ReActAgentUsecase:
                 agent=self.agent,
             )
             if session.llm_id != self.agent.llm_id:
-                raise ReActConfigurationError(
-                    "会話と Agent の LLM 設定が異なります。"
-                )
+                raise ReActConfigurationError("会話と Agent の LLM 設定が異なります。")
             messages = [
                 {"role": message.role, "content": message.content}
                 for message in session.messages.filter(

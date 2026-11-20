@@ -30,9 +30,7 @@ def sdk_answer(text):
             "id": "msg_final",
             "role": "assistant",
             "status": "completed",
-            "content": [
-                {"type": "output_text", "text": text, "annotations": []}
-            ],
+            "content": [{"type": "output_text", "text": text, "annotations": []}],
         }
     ]
 
@@ -40,9 +38,7 @@ def sdk_answer(text):
 class ReActSdkTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.client.force_authenticate(
-            get_user_model().objects.create_user("student")
-        )
+        self.client.force_authenticate(get_user_model().objects.create_user("student"))
         self.llm = LLM.objects.create(
             name="GPT-6 luna",
             provider="OPENAI",
@@ -61,9 +57,7 @@ class ReActSdkTests(TestCase):
     def test_real_sdk_runs_tools_and_reuses_history_across_two_turns(self):
         outputs = iter(
             [
-                sdk_tool_call(
-                    "get_product_price", {"product": "ノート"}, "price-1"
-                ),
+                sdk_tool_call("get_product_price", {"product": "ノート"}, "price-1"),
                 sdk_tool_call(
                     "calculate",
                     {"operation": "multiply", "left": 250, "right": 3},
@@ -75,9 +69,7 @@ class ReActSdkTests(TestCase):
                     "subtract-1",
                 ),
                 sdk_answer("お釣りは250円です。"),
-                sdk_tool_call(
-                    "get_product_price", {"product": "ペン"}, "price-2"
-                ),
+                sdk_tool_call("get_product_price", {"product": "ペン"}, "price-2"),
                 sdk_tool_call(
                     "calculate",
                     {"operation": "multiply", "left": 120, "right": 2},
@@ -95,9 +87,7 @@ class ReActSdkTests(TestCase):
         clients = []
 
         def handle(request):
-            self.assertEqual(
-                str(request.url), "https://example.invalid/v1/responses"
-            )
+            self.assertEqual(str(request.url), "https://example.invalid/v1/responses")
             self.assertEqual(request.method, "POST")
             requests.append(json.loads(request.content))
             return httpx.Response(
@@ -122,9 +112,7 @@ class ReActSdkTests(TestCase):
                 api_key=llm.api_key,
                 base_url=llm.base_url,
                 max_retries=0,
-                http_client=httpx.Client(
-                    transport=httpx.MockTransport(handle)
-                ),
+                http_client=httpx.Client(transport=httpx.MockTransport(handle)),
             )
             clients.append(client)
             return client
@@ -152,9 +140,7 @@ class ReActSdkTests(TestCase):
         self.assertEqual(
             second.data["result"]["message"]["content"], "お釣りは260円です。"
         )
-        self.assertEqual(
-            second.data["session_uuid"], first.data["session_uuid"]
-        )
+        self.assertEqual(second.data["session_uuid"], first.data["session_uuid"])
         self.assertEqual(second.data["usage"]["total_tokens"], 12)
         self.assertEqual(len(requests), 8)
         self.assertEqual(requests[0]["model"], "gpt-6-luna")
@@ -196,21 +182,15 @@ class ReActSdkTests(TestCase):
                     api_key="unused-test-key",
                     base_url="https://example.invalid/v1",
                     max_retries=0,
-                    http_client=httpx.Client(
-                        transport=httpx.MockTransport(handle)
-                    ),
+                    http_client=httpx.Client(transport=httpx.MockTransport(handle)),
                 )
-                with patch(
-                    "core.views.open_react_client", return_value=sdk_client
-                ):
+                with patch("core.views.open_react_client", return_value=sdk_client):
                     result = self.client.post(
                         self.url, {"input": "質問"}, format="json"
                     )
 
                 self.assertEqual(result.status_code, 502)
-                self.assertEqual(
-                    result.data, {"detail": "ReAct execution failed"}
-                )
+                self.assertEqual(result.data, {"detail": "ReAct execution failed"})
                 self.assertEqual(self.agent.sessions.count(), 0)
                 self.assertEqual(len(requests), 1)
                 self.assertTrue(sdk_client.is_closed())

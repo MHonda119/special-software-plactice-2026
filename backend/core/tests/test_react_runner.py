@@ -39,9 +39,7 @@ class ReActRunnerTests(TestCase):
             response(
                 [
                     marker,
-                    tool_call(
-                        "get_product_price", {"product": "ノート"}, "price-1"
-                    ),
+                    tool_call("get_product_price", {"product": "ノート"}, "price-1"),
                 ]
             ),
             response(
@@ -77,8 +75,7 @@ class ReActRunnerTests(TestCase):
         outputs = [
             item
             for item in last_input
-            if isinstance(item, dict)
-            and item.get("type") == "function_call_output"
+            if isinstance(item, dict) and item.get("type") == "function_call_output"
         ]
         self.assertEqual(
             [item["call_id"] for item in outputs],
@@ -90,15 +87,9 @@ class ReActRunnerTests(TestCase):
         client = Mock()
         client.responses.create.side_effect = [
             response(
-                [
-                    tool_call(
-                        "get_product_price", {"product": "未知の商品"}, "bad"
-                    )
-                ]
+                [tool_call("get_product_price", {"product": "未知の商品"}, "bad")]
             ),
-            response(
-                [tool_call("get_product_price", {"product": "ペン"}, "good")]
-            ),
+            response([tool_call("get_product_price", {"product": "ペン"}, "good")]),
             response(text="ペンは120円です。"),
         ]
 
@@ -108,9 +99,7 @@ class ReActRunnerTests(TestCase):
             ]
         )
 
-        second_input = client.responses.create.call_args_list[1].kwargs[
-            "input"
-        ]
+        second_input = client.responses.create.call_args_list[1].kwargs["input"]
         self.assertIn("error", json.loads(second_input[-1]["output"]))
         self.assertEqual(result.content, "ペンは120円です。")
 
@@ -118,9 +107,7 @@ class ReActRunnerTests(TestCase):
         client = Mock()
         client.responses.create.return_value = response(
             [
-                tool_call(
-                    "get_product_price", {"product": "ノート"}, "price-1"
-                ),
+                tool_call("get_product_price", {"product": "ノート"}, "price-1"),
             ]
         )
         with self.assertRaises(ReActLimitError):

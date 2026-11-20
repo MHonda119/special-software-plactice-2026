@@ -23,9 +23,7 @@ class ReActUsecaseTests(TestCase):
             usecase_type="REACT_CHAT",
             llm=self.llm,
         )
-        self.session = ChatSession.objects.create(
-            llm=self.llm, agent=self.agent
-        )
+        self.session = ChatSession.objects.create(llm=self.llm, agent=self.agent)
         self.runner = Mock()
         self.runner.run.return_value = ReActResult(
             content="お釣りは250円です。",
@@ -39,9 +37,7 @@ class ReActUsecaseTests(TestCase):
         self.assertEqual(result["agent_id"], self.agent.id)
         self.assertEqual(session.agent_id, self.agent.id)
         self.assertEqual(session.llm_id, self.llm.id)
-        self.assertEqual(
-            result["result"]["message"]["content"], "お釣りは250円です。"
-        )
+        self.assertEqual(result["result"]["message"]["content"], "お釣りは250円です。")
         self.assertEqual(
             list(session.messages.values_list("role", flat=True)),
             ["user", "assistant"],
@@ -52,9 +48,7 @@ class ReActUsecaseTests(TestCase):
     def test_next_turn_receives_previous_messages(self):
         usecase = ReActAgentUsecase(self.agent, self.runner)
         first = usecase.run("最初の質問")
-        second = usecase.run(
-            "ではペン2本なら？", session_uuid=first["session_uuid"]
-        )
+        second = usecase.run("ではペン2本なら？", session_uuid=first["session_uuid"])
 
         received = self.runner.run.call_args.args[0]
         self.assertEqual(
@@ -73,9 +67,7 @@ class ReActUsecaseTests(TestCase):
         self.assertEqual(session.messages.filter(role="system").count(), 0)
 
     def test_runner_failure_leaves_existing_history_unchanged(self):
-        Message.objects.create(
-            session=self.session, role="user", content="過去の質問"
-        )
+        Message.objects.create(session=self.session, role="user", content="過去の質問")
         previous_ids = list(self.session.messages.values_list("id", flat=True))
         self.runner.run.side_effect = ReActLimitError("上限")
 
@@ -107,9 +99,7 @@ class ReActUsecaseTests(TestCase):
                 raise RuntimeError("保存失敗の再現")
             return original_create(**fields)
 
-        with patch(
-            "core.react_usecases.Message.objects.create", side_effect=persist
-        ):
+        with patch("core.react_usecases.Message.objects.create", side_effect=persist):
             with self.assertRaises(RuntimeError):
                 ReActAgentUsecase(self.agent, self.runner).run("質問")
 
@@ -124,9 +114,7 @@ class ReActUsecaseTests(TestCase):
                 raise RuntimeError("保存失敗の再現")
             return original_create(**fields)
 
-        with patch(
-            "core.react_usecases.Message.objects.create", side_effect=persist
-        ):
+        with patch("core.react_usecases.Message.objects.create", side_effect=persist):
             with self.assertRaises(RuntimeError):
                 ReActAgentUsecase(self.agent, self.runner).run(
                     "質問",
@@ -140,9 +128,7 @@ class ReActUsecaseTests(TestCase):
             usecase_type="REACT_CHAT",
             llm=self.llm,
         )
-        other_session = ChatSession.objects.create(
-            llm=self.llm, agent=other_agent
-        )
+        other_session = ChatSession.objects.create(llm=self.llm, agent=other_agent)
         with self.assertRaises(ChatSession.DoesNotExist):
             ReActAgentUsecase(self.agent, self.runner).run(
                 "質問",
