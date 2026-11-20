@@ -88,6 +88,7 @@ class Agent(models.Model):
     USECASE_CHOICES = [
         ("BASIC_CHAT", "Basic Chat"),
         ("RAG_CHAT", "RAG Chat"),
+        ("REACT_CHAT", "ReAct Chat"),
         ("CUSTOM", "Custom"),
     ]
 
