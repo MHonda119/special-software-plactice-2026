@@ -61,7 +61,7 @@ docker compose exec backend python manage.py check
 | Name | `GPT-6 luna` |
 | Provider | `OPENAI` |
 | Model | `gpt-6-luna` |
-| Base url | `https://api.openai.com/v1`。講師指定の別 URL があればそちら |
+| Base url | `https://api.openai.com/v1` |
 | Api key | 配布された値を管理画面へ直接入力 |
 | Extra | `{}` |
 | Is active | 有効 |
