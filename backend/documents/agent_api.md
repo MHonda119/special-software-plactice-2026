@@ -1,6 +1,8 @@
 # Agent API 仕様 (Draft v2)
 
-最終更新: 2025-11-09
+最終更新: 2026-11-15
+
+本書は初期設計の Draft を残した資料です。現行の契約は [エージェント API 仕様](../../docs/backend/api/agents.md) を参照してください。検証用ブランチでは BASIC_CHAT / RAG_CHAT に加え、既存の `/api/agents/{id}/execute/` に `REACT_CHAT` を実装しています。以下の初期スコープや認証・トランザクションの記述は、現在の全機能を保証するものではありません。
 
 ## 1. 概要
 Agent API は **LLM 設定 (LLM API)** と **会話セッション (Chat Session API)**、将来的には **データソース / ツール** など複数リソースを統合し、ユースケース指向で「実行 (execute)」操作を行う上位レイヤです。Agent はチャットに限定されず、RAG、解析、ツール呼び出し型など多様な振る舞いを内包できます。v2 Draft では **名称整理** (chat→execute) および **config の汎用化** を反映し、RAG 特化設定の過剰露出を排除しました。
@@ -245,3 +247,15 @@ curl -X POST http://localhost:8000/api/agents/1/execute/ \
 
 ---
 以上、Agent API Draft v2 (execute / 汎用 config 統合版)。
+
+## 21. REACT_CHAT 実装差分
+
+- 新しい Route は追加しない。`Agent.usecase_type` の `REACT_CHAT` を、既存 `execute` で通常の会話作成より前に分岐する。Model choices と作成・更新 Serializer、`0005_add_react_chat_usecase` の migration を追加した。
+- 講義では配布 API キーで表示名 `GPT-6 luna`、model `gpt-6-luna`、provider `OPENAI`、base URL `https://api.openai.com/v1` の LLM を登録する。キー自体は資料やコードに記載しない。
+- 入力は `input`、継続時の `session_uuid`、`options.max_steps`。max_steps は既定8、1–8で、`llm.extra < agent.config < request.options` の順に解決する。LLM / Agent の既定設定エラーは422、リクエストの設定エラーは400。
+- `ReActAgentUsecase` は同じ Agent に属する active 会話だけを再利用する。初回は最終回答を得た後に会話と user / assistant を短いトランザクションで保存し、失敗した初回は空の会話も残さない。
+- `ReActRunner` は Responses API の出力全体を引き継ぎ、許可した価格取得と四則演算だけを実行する。計算引数は `operation`、`left`、`right`。Agent の system prompt は毎回渡し、Message に複製しない。
+- 応答形式は既存の `agent_id`、`session_uuid`、`result.message`、`usage` を維持する。usage は全ステップを合算する。上流失敗や上限到達は502、SDKのタイムアウトは504で、上流例外の詳細は返さない。
+- 認証・CSRFは現在の共通設定を使う。ユーザー別所有権、同時送信の直列化、冪等キー、履歴予算、全体期限は未実装。BASIC_CHAT / RAG_CHAT の実装を変更せず、ReActの保存境界を他方式に適用しない。
+
+詳細なフィールド・エラー契約は [現行仕様](../../docs/backend/api/agents.md)、演習の進め方は [実装資料](../../docs/lecture/materials/react-agent-backend-implementation.md) を参照してください。

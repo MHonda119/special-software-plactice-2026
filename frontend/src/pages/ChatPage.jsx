@@ -9,15 +9,19 @@ import {
   Paper,
   Stack,
   TextField,
-  Button,
   Box,
   List,
   ListItem,
   ListItemText,
   Avatar,
+  Chip,
+  CircularProgress,
+  LinearProgress,
+  Tooltip,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SendIcon from "@mui/icons-material/Send";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   getMessages as apiGetMessages,
@@ -37,6 +41,7 @@ export default function ChatPage() {
   const agentName = searchParams.get("agentName") || "";
   const agentUsecase = searchParams.get("usecaseType") || "";
   const isAgentChat = Boolean(agentId);
+  const isReAct = isAgentChat && agentUsecase === "REACT_CHAT";
   const agentQuery = useMemo(() => {
     if (!isAgentChat) return "";
     const q = new URLSearchParams({
@@ -57,7 +62,13 @@ export default function ChatPage() {
   const [error, setError] = useState(null);
   const [input, setInput] = useState("");
   const [isComposing, setIsComposing] = useState(false);
-  const listEndRef = useRef(null);
+  const [executionState, setExecutionState] = useState("idle");
+  const [historyLoading, setHistoryLoading] = useState(Boolean(sessionParam));
+  const sending = executionState === "running";
+  const inputLength = Array.from(input.trim()).length;
+  const inputTooLong = isReAct && inputLength > 2000;
+  const sendPendingRef = useRef(false);
+  const messageListRef = useRef(null);
 
   const visibleMessages = useMemo(
     () => messages.filter((m) => m.role !== "system"),
@@ -65,14 +76,18 @@ export default function ChatPage() {
   );
 
   useEffect(() => {
+    let cancelled = false;
     if (!activeSessionId) {
       setMessages([]);
+      setHistoryLoading(false);
       return;
     }
+    setHistoryLoading(true);
     (async () => {
       setError(null);
       try {
         const ms = await apiGetMessages(activeSessionId);
+        if (cancelled) return;
         // Map backend fields to UI as needed
         const mapped = ms.map((m) => ({
           id: m.id,
@@ -80,8 +95,22 @@ export default function ChatPage() {
           content: m.content,
           createdAt: m.created_at || m.createdAt || new Date().toISOString(),
           citations: m.metadata?.citations,
+          usage: m.usage,
         }));
-        setMessages(mapped);
+        setMessages((previous) => {
+          const usageById = new Map(
+            previous.map((message) => [message.id, message.usage]),
+          );
+          return mapped.map((message) => ({
+            ...message,
+            usage: message.usage || usageById.get(message.id),
+          }));
+        });
+        setExecutionState(
+          mapped.some((message) => message.role === "assistant")
+            ? "completed"
+            : "idle",
+        );
         // Derive title from first user message
         const firstUser = mapped.find((x) => x.role === "user");
         setSessionTitle(
@@ -89,32 +118,51 @@ export default function ChatPage() {
             (firstUser ? firstUser.content.slice(0, 20) : "New Chat"),
         );
       } catch (failure) {
+        if (cancelled) return;
         setError(failure.message);
+        setExecutionState("failed");
         setMessages([]);
         setSessionTitle(agentName || "New Chat");
+      } finally {
+        if (!cancelled) setHistoryLoading(false);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [activeSessionId, agentName]);
 
   useEffect(() => {
-    listEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const list = messageListRef.current;
+    list?.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
   }, [visibleMessages]);
 
   const canSend = useMemo(() => {
-    if (!input.trim()) return false;
+    if (!input.trim() || sending || historyLoading || inputTooLong)
+      return false;
     if (isAgentChat) return true;
     return Boolean(activeSessionId);
-  }, [input, isAgentChat, activeSessionId]);
+  }, [
+    input,
+    isAgentChat,
+    activeSessionId,
+    sending,
+    historyLoading,
+    inputTooLong,
+  ]);
 
   const handleSend = async () => {
-    if (!canSend) return;
+    if (!canSend || sendPendingRef.current) return;
+    sendPendingRef.current = true;
+    setExecutionState("running");
     setError(null);
     const text = input.trim();
+    const temporaryId = `temp-${Date.now()}`;
     setInput("");
     try {
       // Optimistic append user message
       const userMsg = {
-        id: `temp-${Date.now()}`,
+        id: temporaryId,
         role: "user",
         content: text,
         createdAt: new Date().toISOString(),
@@ -141,8 +189,10 @@ export default function ChatPage() {
           content: assistant.content || "",
           createdAt: new Date().toISOString(),
           citations,
+          usage: execResult.usage,
         };
         setMessages((prev) => [...prev, assistantMsg]);
+        setExecutionState("completed");
         if (!sessionTitle) setSessionTitle(agentName || text.slice(0, 20));
         return;
       }
@@ -157,9 +207,19 @@ export default function ChatPage() {
         createdAt: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, assistantMsg]);
+      setExecutionState("completed");
       if (!sessionTitle) setSessionTitle(text.slice(0, 20));
     } catch (e) {
       setError(e.message);
+      setExecutionState("failed");
+      if (isReAct) {
+        setMessages((previous) =>
+          previous.filter((message) => message.id !== temporaryId),
+        );
+        setInput(text);
+      }
+    } finally {
+      sendPendingRef.current = false;
     }
   };
 
@@ -168,13 +228,17 @@ export default function ChatPage() {
       <AppBar position="static">
         <Toolbar>
           <IconButton
+            aria-label="メニューへ戻る"
             color="inherit"
             edge="start"
             onClick={() => navigate("/menu")}
           >
             <ArrowBackIcon />
           </IconButton>
-          <Typography variant="h6" sx={{ ml: 1 }}>
+          <Typography
+            variant="h6"
+            sx={{ ml: 1, minWidth: 0, overflowWrap: "anywhere" }}
+          >
             {sessionTitle || "New Chat"}
           </Typography>
         </Toolbar>
@@ -183,12 +247,77 @@ export default function ChatPage() {
       <Container
         maxWidth="md"
         className="chat-content"
-        style={{ paddingTop: 16, paddingBottom: 16 }}
+        style={{
+          paddingTop: 16,
+          paddingBottom: 16,
+          alignItems: isReAct ? "flex-start" : undefined,
+          minHeight: isReAct ? 0 : undefined,
+        }}
       >
-        <Paper
-          sx={{ width: "100%", display: "flex", flexDirection: "column", p: 2 }}
+        <Box
+          aria-busy={sending || historyLoading}
+          sx={{
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            height: isReAct ? "100%" : undefined,
+            minHeight: isReAct ? 0 : undefined,
+          }}
         >
-          <List sx={{ flex: 1, overflowY: "auto" }}>
+          {isReAct && (
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={1}
+              sx={{
+                minHeight: 40,
+                borderBottom: 1,
+                borderColor: "divider",
+                pb: 1,
+              }}
+            >
+              <AutoAwesomeIcon color="primary" />
+              <Box role="status" aria-live="polite">
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  color={
+                    executionState === "failed"
+                      ? "error"
+                      : executionState === "completed"
+                      ? "success"
+                      : "default"
+                  }
+                  label={`ReAct: ${
+                    historyLoading
+                      ? "履歴読込中"
+                      : {
+                          idle: "待機中",
+                          running: "実行中",
+                          completed: "完了",
+                          failed: "失敗",
+                        }[executionState]
+                  }`}
+                />
+              </Box>
+              {sending && (
+                <CircularProgress size={18} aria-label="ReAct 実行中" />
+              )}
+            </Stack>
+          )}
+          {(sending || historyLoading) && (
+            <LinearProgress aria-label={sending ? "応答待ち" : "履歴読込中"} />
+          )}
+          <List
+            ref={messageListRef}
+            sx={{
+              flex: 1,
+              overflowY: "auto",
+              minHeight: isReAct ? 0 : 180,
+              maxHeight: isReAct ? undefined : "60vh",
+            }}
+          >
             {visibleMessages.map((m) => (
               <ListItem
                 key={m.id}
@@ -208,6 +337,8 @@ export default function ChatPage() {
                     sx={{
                       p: 1.5,
                       maxWidth: "70%",
+                      minWidth: 0,
+                      overflowWrap: "anywhere",
                       bgcolor: m.role === "user" ? "primary.light" : "grey.100",
                     }}
                   >
@@ -215,6 +346,16 @@ export default function ChatPage() {
                       primary={m.content}
                       secondary={new Date(m.createdAt).toLocaleTimeString()}
                     />
+                    {isReAct && m.role === "assistant" && m.usage && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        component="div"
+                      >
+                        入力 {m.usage.input_tokens ?? 0} / 出力{" "}
+                        {m.usage.output_tokens ?? 0} tokens
+                      </Typography>
+                    )}
                     {m.citations?.length > 0 && (
                       <Box mt={1}>
                         <Typography variant="caption" color="text.secondary">
@@ -238,13 +379,18 @@ export default function ChatPage() {
                 </Stack>
               </ListItem>
             ))}
-            <div ref={listEndRef} />
           </List>
-          <Stack direction="row" spacing={2}>
+          <Stack direction="row" spacing={2} sx={{ flexShrink: 0 }}>
             <TextField
               fullWidth
+              label="メッセージ"
+              slotProps={{ inputLabel: { shrink: true } }}
               placeholder="メッセージを入力..."
               value={input}
+              disabled={sending || historyLoading}
+              error={inputTooLong}
+              helperText={isReAct ? `${inputLength} / 2000文字` : undefined}
+              sx={{ minWidth: 0 }}
               onChange={(e) => setInput(e.target.value)}
               onCompositionStart={() => setIsComposing(true)}
               onCompositionEnd={() => setIsComposing(false)}
@@ -255,16 +401,21 @@ export default function ChatPage() {
                 }
               }}
             />
-            <Button
-              variant="contained"
-              endIcon={<SendIcon />}
-              onClick={handleSend}
-              disabled={!canSend}
-            >
-              送信
-            </Button>
+            <Tooltip title="送信">
+              <span>
+                <IconButton
+                  aria-label="送信"
+                  color="primary"
+                  onClick={handleSend}
+                  disabled={!canSend}
+                  sx={{ width: 48, height: 48 }}
+                >
+                  <SendIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
           </Stack>
-        </Paper>
+        </Box>
       </Container>
     </Box>
   );

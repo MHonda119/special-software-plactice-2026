@@ -19,15 +19,16 @@
 
 ## セッションのフィールド
 
-CRUDでは以下の3フィールドだけを公開する。「必須」はPOST/PUTでの入力要否で、PATCHでは省略できる。
+CRUDでは以下の4フィールドを公開する。「必須」はPOST/PUTでの入力要否で、PATCHでは省略できる。
 
 | フィールド | 型 | 必須 | 既定値・制約 |
 | --- | --- | --- | --- |
 | uuid | string (UUID) | 入力不可 | 自動生成。読み取り専用 |
 | llm | integer | 必須 | 存在するLLMのID。`null` 不可。非アクティブなLLMも指定可能 |
 | title | string | 任意 | `New Session`。最大200文字。空文字・`null` 不可 |
+| agent | integer / null | 入力不可 | 所属AgentのID。通常の会話は `null`。読み取り専用 |
 
-モデル内部の `agent`、`metadata`、`is_active`、`created_at`、`updated_at` はこのCRUDの入出力には含めない。`is_active` やエージェントとの紐付けをこのAPIで設定することはできない。
+モデル内部の `metadata`、`is_active`、`created_at`、`updated_at` はこのCRUDの入出力には含めない。`is_active` やエージェントとの紐付けをこのAPIで設定することはできない。入力に `agent` を含めても無視し、所属の割り当て・解除はしない。
 
 ## 作成
 
@@ -46,7 +47,8 @@ CRUDでは以下の3フィールドだけを公開する。「必須」はPOST/P
 {
   "uuid": "550e8400-e29b-41d4-a716-446655440000",
   "llm": 1,
-  "title": "APIについての相談"
+  "title": "APIについての相談",
+  "agent": null
 }
 ```
 
@@ -63,7 +65,8 @@ CRUDでは以下の3フィールドだけを公開する。「必須」はPOST/P
   {
     "uuid": "550e8400-e29b-41d4-a716-446655440000",
     "llm": 1,
-    "title": "APIについての相談"
+    "title": "APIについての相談",
+    "agent": null
   }
 ]
 ```
@@ -71,7 +74,7 @@ CRUDでは以下の3フィールドだけを公開する。「必須」はPOST/P
 `GET /api/sessions/{uuid}/` は配列内と同じ形の単一オブジェクトを返す。
 
 - `is_active=true` のセッションだけが対象。詳細取得、更新、削除、履歴取得も同じ制限を受ける。
-- エージェント経由で生成したアクティブなセッションも一覧に含まれるが、`agent` は返さない。
+- エージェント経由で生成したアクティブなセッションも一覧に含まれ、`agent` に所属IDを返す。フロントエンドはそのAgentを取得して種別を解決し、Agent会話は `execute` 経由で再開する。
 - ページング、検索、LLM・エージェント等による絞り込み、並べ替えパラメータはない。一覧の順序も指定されていない。
 - 通常のCRUD・履歴取得で対象が存在しないか非アクティブなら `404`。`chat` の例外処理は後述。
 
@@ -85,7 +88,7 @@ CRUDでは以下の3フィールドだけを公開する。「必須」はPOST/P
 }
 ```
 
-成功時は `200 OK` で、`uuid`、`llm`、`title` を持つ更新後オブジェクトを返す。
+成功時は `200 OK` で、`uuid`、`llm`、`title`、`agent` を持つ更新後オブジェクトを返す。
 
 - `llm` の変更も可能。既存の履歴は削除されない。
 - `DELETE /api/sessions/{uuid}/` は物理削除。`204 No Content`、ボディなし。
@@ -104,13 +107,15 @@ CRUDでは以下の3フィールドだけを公開する。「必須」はPOST/P
     "id": 1,
     "role": "user",
     "content": "こんにちは",
-    "created_at": "2026-10-25T10:00:00Z"
+    "created_at": "2026-10-25T10:00:00Z",
+    "usage": {}
   },
   {
     "id": 2,
     "role": "assistant",
     "content": "こんにちは。",
-    "created_at": "2026-10-25T10:00:01Z"
+    "created_at": "2026-10-25T10:00:01Z",
+    "usage": {"input_tokens": 8, "output_tokens": 4, "total_tokens": 12}
   }
 ]
 ```
@@ -121,10 +126,11 @@ CRUDでは以下の3フィールドだけを公開する。「必須」はPOST/P
 | role | string | `system` / `user` / `assistant` / `tool` |
 | content | string | メッセージ本文 |
 | created_at | string (datetime) | 作成日時 |
+| usage | JSON | 保存済みの利用量。キーはプロバイダ・実行方式に依存。ReActでは対話内の全ステップを合算したinput_tokens / output_tokens / total_tokens |
 
 - `created_at` 昇順。ページングなしで全件を返す。空の履歴は `[]`。
 - 同一作成日時のメッセージ間の順序について、追加のソートキーはない。
-- `usage`、`metadata`、`name`、`session` はレスポンスに含めない。
+- `metadata`、`name`、`session` はレスポンスに含めない。ReActの途中の推論やツール履歴も公開しない。
 - エージェントのsystem promptやRAGのコンテキストも、保存されていれば `system` メッセージとして返す。
 - メッセージ単体の作成・編集・削除APIはない。
 
@@ -191,7 +197,7 @@ LLMクライアントは `llm.extra` を既定値とし、リクエストの `op
 
 利用量の各値は外部応答に値がなければ `null` となる場合がある。`stream=true` によるストリーミング利用は非対応。
 
-このエンドポイントは `ChatInSessionUsecase` を直接実行する。セッションにエージェントが紐付いていても、エージェントの `config` のマージ、system promptの新規挿入、RAG検索は行わない。それらが必要な場合は `/api/agents/{id}/execute/` を使う。
+このエンドポイントは `ChatInSessionUsecase` を直接実行する。セッションにエージェントが紐付いていても、エージェントの `config` のマージ、system promptの新規挿入、RAG検索、ReActツール実行は行わない。それらが必要な場合は `/api/agents/{id}/execute/` を使う。
 
 ### エラー・制約
 

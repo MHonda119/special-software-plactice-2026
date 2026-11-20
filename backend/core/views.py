@@ -7,6 +7,7 @@ from rest_framework.decorators import (
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import viewsets, status
+from openai import APIError, APITimeoutError
 from .models import LLM, ChatSession, Agent, Message, Datasource
 from .serializers import (
     LLMSerializer,
@@ -16,6 +17,8 @@ from .serializers import (
     AgentSerializer,
     AgentCreateUpdateSerializer,
     AgentExecuteSerializer,
+    ReActExecuteSerializer,
+    ReActSettingsSerializer,
     DatasourceSerializer,
     DatasourceCreateUpdateSerializer,
     DatasourceChunkCreateSerializer,
@@ -31,6 +34,9 @@ from .datasource_store import (
     delete_chunk,
 )
 from .rag_runner import RagChatRunner, RagResult
+from .react_clients import open_react_client
+from .react_runner import ReActConfigurationError, ReActError, ReActRunner
+from .react_usecases import ReActAgentUsecase
 
 import logging
 
@@ -102,6 +108,9 @@ class AgentViewSet(viewsets.ModelViewSet):
         agent = self.get_object()
         if not agent.is_active:
             return Response({"detail": "Agent inactive"}, status=404)
+
+        if agent.usecase_type == "REACT_CHAT":
+            return self._execute_react(request, agent)
 
         ser = AgentExecuteSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
@@ -253,6 +262,47 @@ class AgentViewSet(viewsets.ModelViewSet):
             "usage": result.usage,
         }
         return Response(response, status=200)
+
+    def _execute_react(self, request, agent):
+        serializer = ReActExecuteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        if not isinstance(agent.llm.extra, dict) or not isinstance(agent.config, dict):
+            return Response({"detail": "Invalid ReAct configuration"}, status=422)
+        defaults = ReActSettingsSerializer(data={**agent.llm.extra, **agent.config})
+        if not defaults.is_valid():
+            return Response({"detail": "Invalid ReAct configuration"}, status=422)
+        settings = ReActSettingsSerializer(
+            data={
+                **defaults.validated_data,
+                **serializer.validated_data.get("options", {}),
+            }
+        )
+        settings.is_valid(raise_exception=True)
+
+        try:
+            with open_react_client(agent.llm) as client:
+                runner = ReActRunner(
+                    client=client,
+                    model=agent.llm.model,
+                    max_steps=settings.validated_data["max_steps"],
+                    system_prompt=agent.system_prompt or "",
+                )
+                usecase = ReActAgentUsecase(agent, runner)
+                result = usecase.run(
+                    serializer.validated_data["input"],
+                    session_uuid=serializer.validated_data.get("session_uuid"),
+                )
+        except ChatSession.DoesNotExist:
+            return Response({"detail": "Session not found"}, status=404)
+        except ReActConfigurationError as exc:
+            return Response({"detail": str(exc)}, status=422)
+        except APITimeoutError:
+            return Response({"detail": "LLM request timed out"}, status=504)
+        except (APIError, ReActError):
+            return Response({"detail": "ReAct execution failed"}, status=502)
+
+        return Response(result, status=200)
 
 
 class DatasourceViewSet(viewsets.ModelViewSet):

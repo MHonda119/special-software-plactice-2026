@@ -13,6 +13,12 @@ export const AGENT_USECASE_TYPES = [
       "単純なLLMチャット。システムプロンプトやLLMの生成設定 (temperature など) だけを調整します。",
     requiresDatasources: false,
   },
+  {
+    value: "REACT_CHAT",
+    label: "ReActチャット",
+    description: "文房具の価格取得と四則演算を行うチャット。",
+    requiresDatasources: false,
+  },
 ];
 
 export function findUsecaseMeta(type) {
