@@ -6,3 +6,4 @@ django-cors-headers
 requests
 whitenoise
 chromadb
+openai>=2,<3
