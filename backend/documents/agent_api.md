@@ -34,7 +34,7 @@ Agent API は **LLM 設定 (LLM API)** と **会話セッション (Chat Session
 |------------|----|------|------|
 | id | integer | - | PK |
 | name | string(<=100) | 必須 | 表示名 |
-| usecase_type | enum | 必須 | `BASIC_CHAT` / `RAG_CHAT` / `CUSTOM` (v1: BASIC_CHAT のみ accept) |
+| usecase_type | enum | 必須 | `BASIC_CHAT` / `RAG_CHAT` / `REACT_CHAT` / `CUSTOM` (作成・更新で受け付けるのは BASIC_CHAT / RAG_CHAT / REACT_CHAT) |
 | llm | FK(LLM) | 必須(現状) | 使用する LLM 設定 (将来 optional でマルチ戦略化) |
 | system_prompt | text | 任意 | 先頭に注入するシステムメッセージ (重複回避) |
 | config | JSON | 任意 | UsecaseType 汎用設定 (RAG 専用ではない) |
@@ -195,6 +195,15 @@ config 例キー: `embed_model`, `top_k`, `score_threshold`, `context_template`
 ### 15.2 CUSTOM
 Strategy パイプライン: `steps: ["analyze", "fetch_metrics", "draft", "refine"]` など
 各 step 実行で Tool 呼び出し / 中間メモ保存。
+
+### 15.3 REACT_CHAT
+既存の `POST /api/agents/{id}/execute/` で、ReAct 方式（判断 → ツール実行 → 観測の反復）のエージェントを実行する。新しい Route は追加しない。
+
+- LLM は有効な `OPENAI` のもの（Responses API を使用）に限る。
+- ツールは実装で定義した商品価格取得と四則演算のみ。`Agent.tools` から動的に選択しない。
+- `options.max_steps`（1–8、既定 8）だけを使う。優先順位は `llm.extra < agent.config < request.options`。
+- 成功後にのみ、会話（初回）と user / assistant メッセージを同じトランザクションで保存する。失敗時は何も保存しない。
+- 詳細な契約・エラー（400 / 404 / 422 / 502 / 504）は [docs/backend/api/agents.md](../../docs/backend/api/agents.md) を正とする。
 
 ## 16. 実装コンポーネント設計
 | コンポーネント | 役割 |

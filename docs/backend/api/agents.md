@@ -1,6 +1,6 @@
 # エージェントAPI
 
-LLM、system prompt、生成・検索設定を組み合わせたエージェントを管理し、BASIC_CHATまたはRAG_CHATを実行する。共通仕様は [README.md](README.md) を参照。
+LLM、system prompt、生成・検索設定を組み合わせたエージェントを管理し、BASIC_CHAT、RAG_CHAT、またはReAct方式のREACT_CHATを実行する。共通仕様は [README.md](README.md) を参照。
 
 ## エンドポイント
 
@@ -24,10 +24,10 @@ LLM、system prompt、生成・検索設定を組み合わせたエージェン�
 | --- | --- | --- | --- |
 | id | integer | 入力不可 | 自動採番。読み取り専用 |
 | name | string | 必須 | 最大100文字。空文字・`null` 不可。一意制約なし |
-| usecase_type | string | 必須 | `BASIC_CHAT` / `RAG_CHAT` のみ作成・更新可 |
+| usecase_type | string | 必須 | `BASIC_CHAT` / `RAG_CHAT` / `REACT_CHAT` のみ作成・更新可 |
 | llm | integer | 必須 | 存在するLLMのID。`null` 不可。`LLM.is_active` の制限なし |
 | system_prompt | string / null | 任意 | `null`。空文字可 |
-| config | JSON | 任意 | `{}`。生成パラメータおよびRAG設定 |
+| config | JSON | 任意 | `{}`。生成パラメータ、RAG設定、REACT_CHATの `max_steps` 等 |
 | tools | JSON | 任意 | `{}`。保存・返却するが、現実装の実行処理では使用しない |
 | is_active | boolean | 任意 | `true` |
 
@@ -86,6 +86,20 @@ RAGエージェントの作成例。LLMの登録と、データソースへの�
 
 この例は、チャット用LLMをOLLAMAとして登録している場合を想定する。`embed_model` はその接続先で利用可能で、登録済みチャンクと互換性のある埋め込みモデルを選ぶ。
 
+ReActエージェントの作成例。実行に利用できるLLMは有効なOPENAIプロバイダに限られる。
+
+```json
+{
+  "name": "商品案内 ReAct",
+  "usecase_type": "REACT_CHAT",
+  "llm": 1,
+  "system_prompt": "回答は簡潔な日本語にしてください。",
+  "config": {"max_steps": 6}
+}
+```
+
+`REACT_CHAT` のモデル選択肢はCRUDで受け付けるが、実行時はLLMの `is_active=true`、`provider=OPENAI`、空でない `api_key` と `model` が必要。`config.max_steps` は1から8の整数で、既定値は8。
+
 ## 一覧・詳細取得
 
 `GET /api/agents/` は `200 OK` で、作成レスポンスと同じ構成のオブジェクトの配列を返す。対象がなければ `[]`。`GET /api/agents/{id}/` は単一オブジェクトを返す。
@@ -115,10 +129,10 @@ RAGエージェントの作成例。LLMの登録と、データソースへの�
 
 | フィールド | 型 | 必須 | 説明 |
 | --- | --- | --- | --- |
-| input | string | 必須 | 入力テキスト。前後空白を除去。空文字・空白だけ・`null` 不可 |
+| input | string | 必須 | 入力テキスト。前後空白を除去。空文字・空白だけ・`null` 不可。REACT_CHATでは最大2000文字 |
 | session_uuid | string (UUID) | 任意 | 同じエージェントのアクティブな既存セッション。新規作成時は省略する。`null` 不可 |
-| options | object | 任意 | LLM生成パラメータの上書き。`null` 不可 |
-| retrieval_overrides | object | 任意 | RAG検索設定の上書き。`null` 不可。BASIC_CHATでは使用しない |
+| options | object | 任意 | LLM生成パラメータの上書き。`null` 不可。REACT_CHATでは `max_steps` のみ使用 |
+| retrieval_overrides | object | 任意 | RAG検索設定の上書き。`null` 不可。BASIC_CHAT / REACT_CHATでは使用しない |
 
 ```json
 {
@@ -132,9 +146,16 @@ RAGエージェントの作成例。LLMの登録と、データソースへの�
 - `session_uuid` を省略すると `llm=agent.llm`、`agent=対象エージェント` の新規セッションを作成する。タイトルは `New Session`。
 - 指定したUUIDが存在しない、非アクティブ、別エージェントのセッション、エージェント未紐付けなら `404` の `Session not found`。
 - 同じ会話を継続する場合は、前回のレスポンスの `session_uuid` を次のリクエストに渡す。
-- `system_prompt` が空でなく、セッションに `system` メッセージがまだなければ1度だけ保存する。RAGの検索コンテキストは別途毎回追加する。
-- ユーザー入力を保存し、既存のsystem・user・assistant等の全履歴をLLMへ送信する。生成には現在の `agent.llm` を使う。
-- 実行全体を包むDBトランザクションはない。設定検証や外部呼び出しに失敗しても、新規セッション・systemメッセージ・ユーザー入力等が途中まで残る場合がある。リトライの重複排除もない。
+- BASIC_CHAT / RAG_CHATでは、`system_prompt` が空でなく、セッションに `system` メッセージがまだなければ1度だけ保存する。RAGの検索コンテキストは別途毎回追加する。
+- BASIC_CHAT / RAG_CHATではユーザー入力を保存し、既存のsystem・user・assistant等の全履歴をLLMへ送信する。生成には現在の `agent.llm` を使う。
+- BASIC_CHAT / RAG_CHATの実行全体を包むDBトランザクションはない。設定検証や外部呼び出しに失敗しても、新規セッション・systemメッセージ・ユーザー入力等が途中まで残る場合がある。リトライの重複排除もない。
+
+#### REACT_CHATのセッション処理
+
+- `session_uuid` を省略した場合、Runnerが最終回答を返した後に新規セッションとuser/assistantメッセージを作成する。3件の作成は同じDBトランザクション内で行う。実行に失敗した場合、空のセッションやメッセージは作成しない。
+- 既存セッションでは、対象Agentに属し、アクティブで、`session.llm` が現在の `agent.llm` と一致する必要がある。前提を満たさない会話は `404 Session not found`、LLM不一致は `422`。
+- モデルには過去のuser/assistantメッセージと今回の入力を渡す。Agentの `system_prompt` は固定のReAct指示に追記して各モデル呼び出しに渡し、DBのsystemメッセージには保存しない。ツール呼び出し内容も会話履歴として保存しない。
+- 成功時に今回のuserとassistantメッセージを保存する。実行失敗時は既存セッションにも今回のメッセージを保存しない。
 
 ### 生成パラメータ
 
@@ -153,6 +174,46 @@ citation_snippet_chars, dedup_strategy
 各クライアントは受け取ったoptionsに加え、`llm.extra` を再び既定値としてマージする。そのため `llm.extra` に検索用キーを置くと、Viewで除外しても外部リクエストへ再混入する場合がある。検索設定は `agent.config` または `retrieval_overrides` に置く。
 
 プロバイダ別の転送キー・usageは [セッションAPI](sessions.md) を参照。
+
+### REACT_CHAT設定と実行
+
+`REACT_CHAT` では、次の優先順位で `max_steps` を決める。
+
+```text
+llm.extra < agent.config < request.options
+```
+
+右側が同じキーの値を上書きする。`max_steps` の既定値は8、指定可能な範囲は1から8。ReActではこの設定以外の `options` はモデルSDKへ転送せず、`retrieval_overrides` も使用しない。Agent / LLMの既定設定の型・範囲が不正なら `422`、リクエストの `options.max_steps` が不正なら `400`。
+
+ReActの実行は有効なOPENAI LLMのResponses APIを利用する。各モデル応答を1ステップと数え、ツール呼び出しを必要回数繰り返した後、最終回答を得る応答も上限に含める。利用可能なツールは実装で定義された商品価格取得と四則演算で、Agentの `tools` フィールドから動的に選択するものではない。ツール処理のエラーは結果としてモデルに返されるため、モデルが最終回答できればAPIは成功し得る。
+
+```json
+{
+  "input": "ノートを3冊買って1000円を支払うと、お釣りはいくらですか？",
+  "options": {"max_steps": 4}
+}
+```
+
+成功時は共通の実行レスポンス形式を使い、`result.message` に保存されたassistantメッセージ、`usage` に全ステップのトークン使用量を返す。usageの各整数値はモデルAPIが返した値をステップ間で合算する。
+
+```json
+{
+  "agent_id": 7,
+  "session_uuid": "550e8400-e29b-41d4-a716-446655440000",
+  "result": {
+    "message": {
+      "id": 42,
+      "role": "assistant",
+      "content": "ノート3冊は750円なので、お釣りは250円です。"
+    }
+  },
+  "usage": {
+    "input_tokens": 400,
+    "output_tokens": 80,
+    "total_tokens": 480
+  }
+}
+```
 
 ## BASIC_CHATレスポンス
 
@@ -300,8 +361,12 @@ User: {{question}}
 | --- | --- |
 | 400 | CRUD必須項目不足、未対応usecase_type、不正な関連LLM等 |
 | 400 | executeの必須input不足・空白、UUID形式不正、options等の型不正・`null`。項目別エラー |
+| 400 | REACT_CHATのinputが2000文字を超える、または `options.max_steps` が1–8の範囲外・整数でない |
 | 404 | エージェント不存在・非アクティブ |
 | 404 | 再利用セッション不適合: `{"detail":"Session not found"}` |
+| 422 | REACT_CHATでLLMが非アクティブ・OPENAI以外・APIキーまたはモデル名が不正、Agent/LLMの `max_steps` 設定が不正。ReAct構成エラーは `detail` 付き |
+| 502 | REACT_CHATのモデル応答が未完了・拒否・空回答、ステップ上限、またはOpenAI APIエラー: `{"detail":"ReAct execution failed"}` |
+| 504 | REACT_CHATの外部LLM APIタイムアウト: `{"detail":"LLM request timed out"}` |
 | 422 | RAGのdatasource_ids未指定・空: `{"detail":"datasource_ids required"}` |
 | 422 | RAGのtop_k範囲外: `{"detail":"retrieval param invalid: top_k"}` |
 | 422 | テンプレートの必須プレースホルダー不足: `{"detail":"context_template placeholders missing"}` |
@@ -317,8 +382,12 @@ RAGの数値変換失敗は、範囲外top_k用の `422` と同じではなく�
 ## 実装参照
 
 - [AgentViewSet・execute](../../../backend/core/views.py)
-- [AgentSerializer・AgentCreateUpdateSerializer・AgentExecuteSerializer](../../../backend/core/serializers.py)
+- [AgentSerializer・AgentCreateUpdateSerializer・AgentExecuteSerializer・ReActExecuteSerializer・ReActSettingsSerializer](../../../backend/core/serializers.py)
 - [Agent・ChatSession](../../../backend/core/models.py)
 - [RagChatRunner・検索設定・引用生成](../../../backend/core/rag_runner.py)
+- [ReActAgentUsecase・メッセージ保存](../../../backend/core/react_usecases.py)
+- [ReActRunner・ツール実行ループ](../../../backend/core/react_runner.py)
+- [ReAct用OpenAIクライアント](../../../backend/core/react_clients.py)
+- [ReActツール定義](../../../backend/core/react_tools.py)
 - [埋め込み生成](../../../backend/core/datasource_store.py)
 - [LLMクライアント](../../../backend/core/llm_clients.py)

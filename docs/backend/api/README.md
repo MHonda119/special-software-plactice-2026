@@ -13,7 +13,7 @@ Django REST Frameworkで実装されているAPIの仕様を、リソース別�
 | 認証 | [auth.md](auth.md) | ログイン・ログアウト・固定12時間の認証期限 |
 | LLM | [llms.md](llms.md) | 接続先・モデル・認証情報の管理 |
 | セッション | [sessions.md](sessions.md) | 会話セッションのCRUD、履歴取得、チャット |
-| エージェント | [agents.md](agents.md) | エージェントのCRUD、BASIC_CHAT/RAG_CHATの実行 |
+| エージェント | [agents.md](agents.md) | エージェントのCRUD、BASIC_CHAT/RAG_CHAT/REACT_CHATの実行 |
 | データソース | [datasources.md](datasources.md) | データソースのCRUD、チャンク登録・一覧・削除 |
 
 ## エンドポイント一覧
