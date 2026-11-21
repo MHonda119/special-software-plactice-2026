@@ -86,7 +86,7 @@ class AgentCreateUpdateSerializer(serializers.ModelSerializer):
 
     def validate_usecase_type(self, value):
         # RAG_CHAT を許可 (拡張)。将来 CUSTOM など細分化予定。
-        if value not in {"BASIC_CHAT", "RAG_CHAT"}:
+        if value not in {"BASIC_CHAT", "RAG_CHAT", "REACT_CHAT"}:
             raise ValidationError("Unsupported usecase_type")
         return value
 
@@ -96,6 +96,18 @@ class AgentExecuteSerializer(serializers.Serializer):
     session_uuid = serializers.UUIDField(required=False)
     options = serializers.DictField(required=False)
     retrieval_overrides = serializers.DictField(required=False)
+
+
+class ReActExecuteSerializer(AgentExecuteSerializer):
+    input = serializers.CharField(
+        allow_blank=False,
+        trim_whitespace=True,
+        max_length=2000,
+    )
+
+
+class ReActSettingsSerializer(serializers.Serializer):
+    max_steps = serializers.IntegerField(default=8, min_value=1, max_value=8)
 
 
 class AgentExecuteResponseSerializer(serializers.Serializer):
